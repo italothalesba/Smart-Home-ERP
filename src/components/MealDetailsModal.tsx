@@ -20,7 +20,7 @@ interface MealDetailsModalProps {
 
 export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
   const { update } = useFirestore<Meal>('meals');
-  const { data: products, add: addProduct } = useFirestore<Product>('products');
+  const { data: products, add: addProduct, update: updateProduct } = useFirestore<Product>('products');
   const [newIngredient, setNewIngredient] = useState({
     name: '',
     amountPerPerson: '',
@@ -53,32 +53,47 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
     const ingredientUnit = newIngredient.unit.trim() || 'un';
 
     // Auto-sync with Products (Pantry)
+    let productId = '';
     const existingProduct = products.find(p => p.name.toLowerCase() === ingredientName.toLowerCase());
+    
     if (!existingProduct) {
-      await addProduct({
+      const docRef = await addProduct({
         name: ingredientName,
         price: 0,
-        quantity: amount * peopleCount, // Pre-calculate based on diet
+        quantity: amount * peopleCount,
         category: 'Outros',
         unit: ingredientUnit,
         minStock: 0,
         updatedAt: new Date().toISOString()
       });
+      if (docRef) productId = docRef.id;
+    } else {
+      productId = existingProduct.id;
+      // User requested: "automaticamente aumentar a quantidade na aba de estoque de acordo com a necessidade"
+      const needed = amount * peopleCount;
+      if (existingProduct.quantity < needed) {
+        await updateProduct(existingProduct.id, { quantity: needed });
+      }
     }
 
     // Update existing or add new to structuredIngredients
-    const existingIdx = ingredients.findIndex(i => i.name.toLowerCase() === ingredientName.toLowerCase());
+    const existingIdx = ingredients.findIndex(i => 
+      (i.productId && i.productId === productId) || 
+      i.name.toLowerCase() === ingredientName.toLowerCase()
+    );
     let updatedIngredients;
     
     if (existingIdx > -1) {
       updatedIngredients = [...ingredients];
       updatedIngredients[existingIdx] = {
         ...updatedIngredients[existingIdx],
+        productId,
         amountPerPerson: amount,
         unit: ingredientUnit
       };
     } else {
       updatedIngredients = [...ingredients, {
+        productId,
         name: ingredientName,
         amountPerPerson: amount,
         unit: ingredientUnit
@@ -92,7 +107,20 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
 
   const updateIngredientAmount = async (index: number, amount: number) => {
     const updatedIngredients = [...ingredients];
-    updatedIngredients[index] = { ...updatedIngredients[index], amountPerPerson: amount };
+    const ing = updatedIngredients[index];
+    updatedIngredients[index] = { ...ing, amountPerPerson: amount };
+    
+    // Sync with Pantry
+    if (ing.productId) {
+      const product = products.find(p => p.id === ing.productId);
+      if (product) {
+        const needed = amount * peopleCount;
+        if (product.quantity < needed) {
+          await updateProduct(product.id, { quantity: needed });
+        }
+      }
+    }
+
     await update(meal.id, { structuredIngredients: updatedIngredients });
   };
 
@@ -119,6 +147,8 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
       amountPerPerson: '',
       unit: product.unit
     });
+    // Store temporarily in a way we can use on submit
+    // We could also just add it immediately
     setShowSuggestions(false);
   };
 

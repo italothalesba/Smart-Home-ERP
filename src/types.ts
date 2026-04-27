@@ -47,6 +47,7 @@ export interface Finance {
 }
 
 export interface MealIngredient {
+  productId?: string;
   name: string;
   amountPerPerson: number;
   unit: string;

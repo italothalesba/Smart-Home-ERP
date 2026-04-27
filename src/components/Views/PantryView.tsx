@@ -40,7 +40,8 @@ export function PantryView() {
     price: 0,
     category: '',
     unit: '',
-    quantity: 0
+    quantity: 0,
+    minStock: 0
   });
 
   const startEditing = (p: Product) => {
@@ -50,7 +51,8 @@ export function PantryView() {
       price: p.price,
       category: p.category,
       unit: p.unit,
-      quantity: p.quantity
+      quantity: p.quantity,
+      minStock: p.minStock || 0
     });
   };
 
@@ -61,7 +63,8 @@ export function PantryView() {
         price: editingForm.price,
         category: editingForm.category,
         unit: editingForm.unit,
-        quantity: editingForm.quantity
+        quantity: editingForm.quantity,
+        minStock: editingForm.minStock
       });
       setEditingId(null);
     }
@@ -383,15 +386,38 @@ export function PantryView() {
                       )}
                     >
                       {editingId === p.id ? (
-                        <div className="space-y-4 h-full flex flex-col">
-                          <input 
-                            value={editingForm.name}
-                            onChange={e => setEditingForm({...editingForm, name: e.target.value})}
-                            className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500"
-                          />
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-slate-50 px-3 py-2 border border-slate-100 rounded-xl flex items-center gap-2">
-                               <span className="text-[9px] font-black text-slate-400">R$</span>
+                        <div className="space-y-3 h-full flex flex-col">
+                          <div className="grid grid-cols-2 gap-2">
+                            <input 
+                              value={editingForm.name}
+                              onChange={e => setEditingForm({...editingForm, name: e.target.value})}
+                              placeholder="Nome"
+                              className="col-span-2 w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                            <select
+                              value={editingForm.category}
+                              onChange={e => setEditingForm({...editingForm, category: e.target.value})}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none"
+                            >
+                              {CATEGORY_ORDER.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                            </select>
+                            <select
+                              value={editingForm.unit}
+                              onChange={e => setEditingForm({...editingForm, unit: e.target.value})}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none"
+                            >
+                              <option value="un">un</option>
+                              <option value="pct">pct</option>
+                              <option value="Kg">Kg</option>
+                              <option value="g">g</option>
+                              <option value="Litro">l</option>
+                              <option value="caixa">cx</option>
+                            </select>
+                          </div>
+                          
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="bg-slate-50 px-2 py-1.5 border border-slate-100 rounded-xl flex flex-col">
+                               <span className="text-[8px] font-black text-slate-400 uppercase">Preço</span>
                                <input 
                                  type="number"
                                  step="0.01"
@@ -400,7 +426,8 @@ export function PantryView() {
                                  className="w-full bg-transparent text-xs font-black outline-none"
                                />
                             </div>
-                            <div className="bg-slate-50 px-3 py-2 border border-slate-100 rounded-xl flex items-center gap-2">
+                            <div className="bg-slate-50 px-2 py-1.5 border border-slate-100 rounded-xl flex flex-col">
+                               <span className="text-[8px] font-black text-slate-400 uppercase">Qtd</span>
                                <input 
                                  type="number"
                                  step="0.01"
@@ -408,12 +435,21 @@ export function PantryView() {
                                  onChange={e => setEditingForm({...editingForm, quantity: parseFloat(e.target.value) || 0})}
                                  className="w-full bg-transparent text-xs font-black outline-none"
                                />
-                               <span className="text-[9px] font-black text-slate-400 uppercase">{p.unit}</span>
+                            </div>
+                            <div className="bg-slate-50 px-2 py-1.5 border border-slate-100 rounded-xl flex flex-col">
+                               <span className="text-[8px] font-black text-slate-400 uppercase">Min</span>
+                               <input 
+                                 type="number"
+                                 step="0.01"
+                                 value={editingForm.minStock}
+                                 onChange={e => setEditingForm({...editingForm, minStock: parseFloat(e.target.value) || 0})}
+                                 className="w-full bg-transparent text-xs font-black outline-none"
+                               />
                             </div>
                           </div>
                           <div className="mt-auto flex gap-2">
-                            <button onClick={saveEdit} className="flex-1 bg-emerald-600 text-white py-2 rounded-xl text-[10px] font-black uppercase">Salvar</button>
-                            <button onClick={() => setEditingId(null)} className="px-4 bg-slate-100 text-slate-500 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">X</button>
+                            <button onClick={saveEdit} className="flex-1 bg-emerald-600 text-white py-2 rounded-xl text-[10px] font-black uppercase cursor-pointer">Salvar</button>
+                            <button onClick={() => setEditingId(null)} className="px-4 bg-slate-100 text-slate-500 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer">X</button>
                           </div>
                         </div>
                       ) : (
@@ -430,7 +466,30 @@ export function PantryView() {
                                  <h4 className="text-sm font-black text-slate-900 truncate tracking-tight">{p.name}</h4>
                                  <div className="flex items-center gap-2 mt-1">
                                     <span className="text-[10px] font-black text-emerald-600 italic tracking-tighter">R$ {p.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / {p.unit}</span>
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">• Min: {p.minStock || 0}</span>
                                  </div>
+                                 {(() => {
+                                   const foundKey = Object.keys(recommendedQuantities).find(key => 
+                                     p.name.toLowerCase().includes(key.toLowerCase()) || 
+                                     key.toLowerCase().includes(p.name.toLowerCase())
+                                   );
+                                   if (foundKey) {
+                                     const rawSuggested = recommendedQuantities[foundKey];
+                                     const suggestedNum = parseFloat(rawSuggested);
+                                     if (!isNaN(suggestedNum)) {
+                                       return (
+                                         <button 
+                                           onClick={() => update(p.id, { quantity: suggestedNum })}
+                                           className="mt-2 text-[9px] font-black text-emerald-600 uppercase bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 flex items-center gap-1.5 hover:bg-emerald-100 transition-colors cursor-pointer"
+                                         >
+                                           <ShoppingCart size={10} />
+                                           Sincronizar Dieta: {rawSuggested}
+                                         </button>
+                                       );
+                                     }
+                                   }
+                                   return null;
+                                 })()}
                                </div>
                             </div>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

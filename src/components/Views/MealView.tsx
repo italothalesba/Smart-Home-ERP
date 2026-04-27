@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useFirestore } from '../../hooks/useFirestore';
-import { Meal, MealType } from '../../types';
+import { Meal, MealType, Product, MealIngredient } from '../../types';
 import { generateShoppingList } from '../../lib/gemini';
 import { 
   ChefHat, 
@@ -12,7 +12,8 @@ import {
   ShoppingBag,
   Clock,
   ArrowRight,
-  Calculator
+  Calculator,
+  X
 } from 'lucide-react';
 import { INGREDIENT_RATIOS } from '../../lib/constants';
 import { MealDetailsModal } from '../MealDetailsModal';
@@ -44,6 +45,7 @@ const MEAL_TYPE_ORDER = {
 
 export function MealView() {
   const { data: meals, add, update, remove } = useFirestore<Meal>('meals');
+  const { data: products, update: updateProduct } = useFirestore<Product>('products');
   const [isAdding, setIsAdding] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [shoppingList, setShoppingList] = useState<string[]>([]);
@@ -52,23 +54,108 @@ export function MealView() {
     day: 'Domingo',
     type: MealType.ALMOCO,
     title: '',
-    ingredients: '',
     instructions: '',
-    peopleCount: 3
+    peopleCount: 3,
+    structuredIngredients: [] as MealIngredient[]
   });
+
+  const [currentIngredient, setCurrentIngredient] = useState({
+    productId: '',
+    amountPerPerson: 0
+  });
+
+  const handleAddIngredient = () => {
+    if (!currentIngredient.productId || currentIngredient.amountPerPerson <= 0) return;
+    
+    const product = products.find(p => p.id === currentIngredient.productId);
+    if (!product) return;
+
+    const newIngredient: MealIngredient = {
+      productId: product.id,
+      name: product.name,
+      amountPerPerson: currentIngredient.amountPerPerson,
+      unit: product.unit
+    };
+
+    setForm({
+      ...form,
+      structuredIngredients: [...form.structuredIngredients, newIngredient]
+    });
+    setCurrentIngredient({ productId: '', amountPerPerson: 0 });
+  };
+
+  const handleRemoveIngredient = (index: number) => {
+    setForm({
+      ...form,
+      structuredIngredients: form.structuredIngredients.filter((_, i) => i !== index)
+    });
+  };
+
+  const syncPantryOnMealChange = (ingredients: MealIngredient[], people: number) => {
+    // The user wants to "automatically increase the quantity in the pantry according to need"
+    // So for each ingredient, we ensure the pantry has at least (people * amountPerPerson)
+    ingredients.forEach(ing => {
+      if (!ing.productId) return;
+      const product = products.find(p => p.id === ing.productId);
+      if (product) {
+        const needed = ing.amountPerPerson * people;
+        // User requested: "automaticamente aumentar a quantidade na aba de estoque de acordo com a necessidade"
+        // This implies that if the need is met, we don't necessarily decrease, but we definitely increase if needed.
+        // Or perhaps they want a strict sync. Let's go with ensuring it reflects the "Planned" amount if it's higher.
+        if (product.quantity < needed) {
+          updateProduct(product.id, { quantity: needed });
+        }
+      }
+    });
+  };
 
   const handleAddMeal = (e: React.FormEvent) => {
     e.preventDefault();
+    const ingredientsStringList = form.structuredIngredients.map(ing => `${ing.name} (${ing.amountPerPerson * form.peopleCount}${ing.unit})`);
+    
     add({
       day: form.day,
       type: form.type,
       title: form.title,
-      ingredients: form.ingredients.split(',').map(i => i.trim()).filter(i => i),
+      ingredients: ingredientsStringList,
+      structuredIngredients: form.structuredIngredients,
       instructions: form.instructions,
       peopleCount: form.peopleCount
     });
+
+    // Automatically adjust pantry based on "necessity"
+    syncPantryOnMealChange(form.structuredIngredients, form.peopleCount);
+
     setIsAdding(false);
-    setForm({ day: 'Domingo', type: MealType.ALMOCO, title: '', ingredients: '', instructions: '', peopleCount: 3 });
+    setForm({ 
+      day: 'Domingo', 
+      type: MealType.ALMOCO, 
+      title: '', 
+      instructions: '', 
+      peopleCount: 3,
+      structuredIngredients: []
+    });
+  };
+
+  const handleUpdatePeopleCount = (meal: Meal, newCount: number) => {
+    if (newCount === meal.peopleCount) return;
+    
+    // Calculate new ingredients string if structured ingredients exist
+    let newIngredientsStr = meal.ingredients;
+    if (meal.structuredIngredients) {
+      newIngredientsStr = meal.structuredIngredients.map(ing => 
+        `${ing.name} (${(ing.amountPerPerson * newCount).toFixed(2)}${ing.unit})`
+      );
+    }
+    
+    update(meal.id, { 
+      peopleCount: newCount,
+      ingredients: newIngredientsStr
+    });
+
+    if (meal.structuredIngredients) {
+      syncPantryOnMealChange(meal.structuredIngredients, newCount);
+    }
   };
 
   const handleGenerateList = async () => {
@@ -527,6 +614,63 @@ export function MealView() {
                 </div>
 
                 <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Ingredientes do Estoque</label>
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                       <select
+                         value={currentIngredient.productId}
+                         onChange={e => setCurrentIngredient({...currentIngredient, productId: e.target.value})}
+                         className="flex-1 px-4 py-3 border border-slate-100 bg-slate-50 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer appearance-none"
+                       >
+                         <option value="">Selecionar Produto...</option>
+                         {products.sort((a, b) => a.name.localeCompare(b.name)).map(p => (
+                           <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>
+                         ))}
+                       </select>
+                       <input 
+                         type="number"
+                         step="0.001"
+                         placeholder="Qtd/Pessoa"
+                         value={currentIngredient.amountPerPerson || ''}
+                         onChange={e => setCurrentIngredient({...currentIngredient, amountPerPerson: parseFloat(e.target.value) || 0})}
+                         className="w-24 px-4 py-3 border border-slate-100 bg-slate-50 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                       />
+                       <button 
+                         type="button"
+                         onClick={handleAddIngredient}
+                         className="p-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all cursor-pointer"
+                       >
+                         <Plus size={16} />
+                       </button>
+                    </div>
+
+                    {form.structuredIngredients.length > 0 && (
+                      <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-2">
+                        {form.structuredIngredients.map((ing, idx) => (
+                          <div key={idx} className="flex items-center justify-between gap-4 py-1 border-b border-white last:border-0 group">
+                            <div className="flex-1 min-w-0">
+                               <p className="text-[10px] font-black text-slate-700 uppercase truncate">{ing.name}</p>
+                               <p className="text-[9px] font-bold text-slate-400">
+                                 {ing.amountPerPerson} {ing.unit} por pessoa 
+                                 <span className="mx-1">•</span> 
+                                 Total: {(ing.amountPerPerson * form.peopleCount).toFixed(2)} {ing.unit}
+                               </p>
+                            </div>
+                            <button 
+                              type="button" 
+                              onClick={() => handleRemoveIngredient(idx)}
+                              className="p-1.5 text-slate-300 hover:text-red-500 transition-colors cursor-pointer"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Título do Prato</label>
                   <input 
                     required
@@ -574,8 +718,15 @@ export function MealView() {
                                <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
                                  {MEAL_TYPE_LABELS[meal.type]}
                                </span>
-                               <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded-md">
-                                 Pessoas: {meal.peopleCount || 1}
+                               <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                 Pessoas: 
+                                 <input 
+                                   type="number"
+                                   min="1"
+                                   defaultValue={meal.peopleCount || 1}
+                                   onBlur={(e) => handleUpdatePeopleCount(meal, parseInt(e.target.value) || 1)}
+                                   className="w-8 bg-transparent text-center font-black outline-none border-b border-transparent focus:border-slate-300"
+                                 />
                                </span>
                             </div>
                             <h4 className="text-sm font-black text-slate-900 truncate">{meal.title}</h4>

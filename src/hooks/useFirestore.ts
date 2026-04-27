@@ -39,15 +39,17 @@ export function useFirestore<T>(collectionName: string) {
 
   const add = async (item: any) => {
     const userId = auth.currentUser?.uid;
-    if (!userId) return;
+    if (!userId) return null;
     try {
-      await addDoc(collection(db, `users/${userId}/${collectionName}`), {
+      const docRef = await addDoc(collection(db, `users/${userId}/${collectionName}`), {
         ...item,
         updatedAt: serverTimestamp(),
         ownerId: userId
       });
+      return docRef;
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, collectionName);
+      return null;
     }
   };
 
