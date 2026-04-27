@@ -46,13 +46,21 @@ export interface Finance {
   ownerId: string;
 }
 
+export interface MealIngredient {
+  name: string;
+  amountPerPerson: number;
+  unit: string;
+}
+
 export interface Meal {
   id: string;
   day: string;
   type: MealType;
   title: string;
   ingredients: string[];
+  structuredIngredients?: MealIngredient[];
   instructions?: string;
+  peopleCount?: number;
 }
 
 export interface Pet {

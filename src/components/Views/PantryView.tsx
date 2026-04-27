@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useFirestore } from '../../hooks/useFirestore';
-import { Product } from '../../types';
-import { Plus, Trash2, Package, AlertCircle } from 'lucide-react';
+import { Product, Meal } from '../../types';
+import { INGREDIENT_RATIOS } from '../../lib/constants';
+import { Plus, Trash2, Package, AlertCircle, ShoppingCart, Pencil, Check, X as CloseIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -10,8 +11,20 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+const CATEGORY_ORDER = [
+  'Mercearia',
+  'Proteínas',
+  'Laticínios',
+  'Hortifruti',
+  'Padaria',
+  'Higiene/Limpeza',
+  'Pets',
+  'Outros'
+];
+
 export function PantryView() {
   const { data: products, add, remove, update } = useFirestore<Product>('products');
+  const { data: meals } = useFirestore<Meal>('meals');
   const [isAdding, setIsAdding] = useState(false);
   const [form, setForm] = useState({
     name: '',
@@ -21,8 +34,83 @@ export function PantryView() {
     unit: 'un',
     price: ''
   });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingForm, setEditingForm] = useState({
+    name: '',
+    price: 0,
+    category: '',
+    unit: '',
+    quantity: 0
+  });
 
-  const lowStockItems = products.filter(p => p.quantity <= (p.minStock || 1));
+  const startEditing = (p: Product) => {
+    setEditingId(p.id);
+    setEditingForm({
+      name: p.name,
+      price: p.price,
+      category: p.category,
+      unit: p.unit,
+      quantity: p.quantity
+    });
+  };
+
+  const saveEdit = async () => {
+    if (editingId) {
+      await update(editingId, {
+        name: editingForm.name,
+        price: editingForm.price,
+        category: editingForm.category,
+        unit: editingForm.unit,
+        quantity: editingForm.quantity
+      });
+      setEditingId(null);
+    }
+  };
+
+  const recommendedQuantities = useMemo(() => {
+    const totals: Record<string, number> = {};
+    const units: Record<string, string> = {};
+
+    meals.forEach(meal => {
+      const people = meal.peopleCount || 3;
+      
+      // Use structured ingredients if available, otherwise fallback to simple ingredients + constants
+      if (meal.structuredIngredients && meal.structuredIngredients.length > 0) {
+        meal.structuredIngredients.forEach(ing => {
+          if (ing.amountPerPerson > 0) {
+            totals[ing.name] = (totals[ing.name] || 0) + (ing.amountPerPerson * people);
+            units[ing.name] = ing.unit;
+          }
+        });
+      } else {
+        meal.ingredients.forEach(ingredient => {
+          const foundKey = Object.keys(INGREDIENT_RATIOS).find(key => 
+            ingredient.toLowerCase().includes(key.toLowerCase()) || 
+            key.toLowerCase().includes(ingredient.toLowerCase())
+          );
+
+          if (foundKey) {
+            const ratio = INGREDIENT_RATIOS[foundKey];
+            totals[foundKey] = (totals[foundKey] || 0) + (ratio.amount * people);
+            units[foundKey] = ratio.unit;
+          }
+        });
+      }
+    });
+
+    return Object.fromEntries(
+      Object.entries(totals).map(([name, total]) => [name, `${total.toFixed(1)} ${units[name]}`])
+    );
+  }, [meals]);
+
+  const sortedCategories = useMemo(() => {
+    const existingCategories: string[] = Array.from(new Set(products.map((p: Product) => p.category)));
+    const ordered = CATEGORY_ORDER.filter(cat => existingCategories.includes(cat));
+    const remaining = existingCategories.filter(cat => !CATEGORY_ORDER.includes(cat));
+    return [...ordered, ...remaining];
+  }, [products]);
+
+  const lowStockItems = products.filter(p => p.quantity <= (p.minStock || 0));
   const totalFeira = products.reduce((acc, p) => acc + (p.price * p.quantity), 0);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -38,8 +126,6 @@ export function PantryView() {
     setIsAdding(false);
     setForm({ name: '', quantity: '', minStock: '', category: 'Mercearia', unit: 'un', price: '' });
   };
-
-  const categories = Array.from(new Set(products.map(p => p.category)));
 
   const loadSuggestedList = () => {
     const suggested = [
@@ -128,8 +214,12 @@ export function PantryView() {
             <AlertCircle size={20} />
           </div>
           <div>
-            <h4 className="text-[10px] font-bold text-red-800 uppercase tracking-widest text-left">Itens em Falta</h4>
-            <p className="text-sm font-bold text-red-600 text-left">Você tem {lowStockItems.length} itens acabando.</p>
+            <h4 className="text-[10px] font-bold text-red-800 uppercase tracking-widest text-left">Reposição Necessária</h4>
+            <p className="text-sm font-black text-red-600 text-left leading-tight">
+              {lowStockItems.length === 1 
+                ? `Falta ${lowStockItems[0].name} para completar a dieta.`
+                : `${lowStockItems.length} itens essenciais estão em falta.`}
+            </p>
           </div>
         </div>
       )}
@@ -213,6 +303,7 @@ export function PantryView() {
                 <option value="Pets">Pets</option>
                 <option value="Hortifruti">Hortifruti</option>
                 <option value="Padaria">Padaria</option>
+                <option value="Outros">Outros</option>
               </select>
             </div>
             <div className="space-y-1">
@@ -245,15 +336,23 @@ export function PantryView() {
           </div>
         )}
 
-        {(categories.length > 0 ? categories : ['Geral']).map(cat => {
+        {(sortedCategories.length > 0 ? sortedCategories : ['Geral']).map(cat => {
           const catProducts = products.filter(p => p.category === cat);
           if (catProducts.length === 0) return null;
 
+          const catTotal = catProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0);
+
           return (
-            <div key={cat} className="space-y-3">
-              <div className="flex items-center gap-3 px-2">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{cat}</span>
-                <div className="h-px bg-slate-100 flex-1" />
+            <div key={cat} className="space-y-4">
+              <div className="flex items-center justify-between px-2">
+                <div className="flex items-center gap-3 flex-1">
+                  <span className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em] bg-slate-100 px-3 py-1 rounded-full">{cat}</span>
+                  <div className="h-px bg-slate-100 flex-1" />
+                </div>
+                <div className="ml-4 flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{catProducts.length} itens</span>
+                  <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">R$ {catTotal.toFixed(2)}</span>
+                </div>
               </div>
               
               <div className="grid grid-cols-1 gap-3">
@@ -263,65 +362,190 @@ export function PantryView() {
                     key={p.id}
                     className={cn(
                       "p-5 rounded-[24px] border transition-all shadow-sm flex items-center justify-between gap-4",
-                      p.quantity <= (p.minStock || 0) ? "bg-red-50 border-red-100" : "bg-white border-slate-100"
+                      p.quantity <= (p.minStock || 0) && !editingId ? "bg-red-50 border-red-100" : "bg-white border-slate-100"
                     )}
                   >
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className={cn(
-                        "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
-                        p.quantity <= (p.minStock || 0) ? "bg-red-100 text-red-600" : "bg-slate-50 text-slate-600"
-                      )}>
-                        <Package size={24} />
-                      </div>
-                      <div className="min-w-0 flex-1 text-left">
-                        <h4 className={cn(
-                          "text-sm font-bold truncate",
-                          p.quantity <= (p.minStock || 0) ? "text-red-900" : "text-slate-900"
-                        )}>{p.name}</h4>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase">{p.quantity} {p.unit}</span>
-                          <span className="text-slate-200">•</span>
-                          <div className="flex items-center gap-0.5 text-emerald-600">
-                            <span className="text-[10px] font-bold uppercase">R$</span>
+                    {editingId === p.id ? (
+                      <div className="flex-1 space-y-3">
+                        <div className="flex gap-2">
+                          <input 
+                            value={editingForm.name}
+                            onChange={e => setEditingForm({...editingForm, name: e.target.value})}
+                            className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                          <select
+                            value={editingForm.category}
+                            onChange={e => setEditingForm({...editingForm, category: e.target.value})}
+                            className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none"
+                          >
+                            <option value="Mercearia">Mercearia</option>
+                            <option value="Proteínas">Proteínas</option>
+                            <option value="Laticínios">Laticínios</option>
+                            <option value="Higiene/Limpeza">Higiene/Limpeza</option>
+                            <option value="Pets">Pets</option>
+                            <option value="Hortifruti">Hortifruti</option>
+                            <option value="Padaria">Padaria</option>
+                            <option value="Outros">Outros</option>
+                          </select>
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="flex-1 flex items-center gap-2 bg-slate-50 px-3 py-1.5 border border-slate-200 rounded-lg">
+                            <span className="text-[10px] font-bold text-slate-400">R$</span>
                             <input 
                               type="number"
                               step="0.01"
-                              defaultValue={p.price}
-                              onBlur={(e) => {
-                                const val = parseFloat(e.target.value);
-                                if (!isNaN(val) && val !== p.price) {
-                                  update(p.id, { price: val });
-                                }
-                              }}
-                              className="text-[10px] font-bold uppercase bg-slate-50 border border-transparent focus:border-emerald-200 rounded px-1 w-14 outline-none"
+                              value={editingForm.price}
+                              onChange={e => setEditingForm({...editingForm, price: parseFloat(e.target.value) || 0})}
+                              className="w-full bg-transparent text-xs font-black outline-none"
                             />
-                            <span className="text-[10px] font-bold uppercase">/ {p.unit}</span>
+                          </div>
+                          <div className="flex-1 flex items-center gap-2 bg-slate-50 px-3 py-1.5 border border-slate-200 rounded-lg">
+                            <input 
+                              type="number"
+                              step="0.01"
+                              value={editingForm.quantity}
+                              onChange={e => setEditingForm({...editingForm, quantity: parseFloat(e.target.value) || 0})}
+                              className="w-full bg-transparent text-xs font-black outline-none"
+                            />
+                            <select
+                              value={editingForm.unit}
+                              onChange={e => setEditingForm({...editingForm, unit: e.target.value})}
+                              className="bg-transparent text-[10px] font-bold uppercase outline-none"
+                            >
+                              <option value="un">un</option>
+                              <option value="pct">pct</option>
+                              <option value="Kg">Kg</option>
+                              <option value="g">g</option>
+                              <option value="Litro">l</option>
+                              <option value="caixa">cx</option>
+                            </select>
                           </div>
                         </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className={cn(
+                          "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
+                          p.quantity <= (p.minStock || 0) ? "bg-red-100 text-red-600" : "bg-slate-50 text-slate-600"
+                        )}>
+                          <Package size={24} />
+                        </div>
+                        <div className="min-w-0 flex-1 text-left">
+                          <h4 className={cn(
+                            "text-sm font-bold truncate",
+                            p.quantity <= (p.minStock || 0) ? "text-red-900" : "text-slate-900"
+                          )}>{p.name}</h4>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 group/input">
+                              <input 
+                                type="number"
+                                step="0.001"
+                                defaultValue={p.quantity}
+                                onBlur={(e) => {
+                                  const val = parseFloat(e.target.value);
+                                  if (!isNaN(val) && val !== p.quantity) {
+                                    update(p.id, { quantity: val });
+                                  }
+                                }}
+                                className="w-16 bg-transparent text-[10px] font-black text-slate-700 outline-none"
+                              />
+                              <span className="text-[10px] font-bold text-slate-400 uppercase">{p.unit}</span>
+                            </div>
 
-                    <div className="text-right">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Subtotal</p>
-                      <p className="text-sm font-black text-slate-900">R$ {(p.price * p.quantity).toFixed(2)}</p>
-                    </div>
+                            {(() => {
+                              const foundKey = Object.keys(recommendedQuantities).find(key => 
+                                p.name.toLowerCase().includes(key.toLowerCase()) || 
+                                key.toLowerCase().includes(p.name.toLowerCase())
+                              );
+                              if (foundKey) {
+                                const suggested = recommendedQuantities[foundKey];
+                                return (
+                                  <>
+                                    <span className="text-slate-200">•</span>
+                                    <button 
+                                      onClick={() => update(p.id, { quantity: suggested })}
+                                      className="text-[10px] font-bold text-emerald-600 uppercase bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 flex items-center gap-1 hover:bg-emerald-100 transition-colors"
+                                      title="Aplicar quantidade sugerida pela dieta"
+                                    >
+                                      <ShoppingCart size={10} />
+                                      Sugerido: {suggested}
+                                      <span className="ml-1 bg-emerald-600 text-white px-1 rounded-[4px] text-[8px]">SYNC</span>
+                                    </button>
+                                  </>
+                                );
+                              }
+                              return null;
+                            })()}
+                            
+                            <span className="text-slate-200">•</span>
+                            <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-100 rounded-lg px-2 py-0.5">
+                              <span className="text-[10px] font-bold text-emerald-600 uppercase">R$</span>
+                              <input 
+                                type="number"
+                                step="0.01"
+                                defaultValue={p.price}
+                                onBlur={(e) => {
+                                  const val = parseFloat(e.target.value);
+                                  if (!isNaN(val) && val !== p.price) {
+                                    update(p.id, { price: val });
+                                  }
+                                }}
+                                className="w-14 bg-transparent text-[10px] font-black text-emerald-700 outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {!editingId && (
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Subtotal</p>
+                        <p className="text-sm font-black text-slate-900">R$ {(p.price * p.quantity).toFixed(2)}</p>
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-1">
-                      <button 
-                        onClick={() => update(p.id, { quantity: Math.max(0, p.quantity - 1) })}
-                        className="w-8 h-8 flex items-center justify-center bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors font-bold"
-                      >
-                        -
-                      </button>
-                      <button 
-                        onClick={() => update(p.id, { quantity: p.quantity + 1 })}
-                        className="w-8 h-8 flex items-center justify-center bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors font-bold"
-                      >
-                        +
-                      </button>
-                      <button onClick={() => remove(p.id)} className="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-red-500 transition-all rounded-lg ml-1">
-                        <Trash2 size={16} />
-                      </button>
+                      {editingId === p.id ? (
+                        <>
+                          <button 
+                            onClick={saveEdit}
+                            className="w-8 h-8 flex items-center justify-center bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                          >
+                            <Check size={16} />
+                          </button>
+                          <button 
+                            onClick={() => setEditingId(null)}
+                            className="w-8 h-8 flex items-center justify-center bg-slate-100 text-slate-400 rounded-lg hover:bg-slate-200 transition-colors"
+                          >
+                            <CloseIcon size={16} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button 
+                            onClick={() => startEditing(p)}
+                            className="w-8 h-8 flex items-center justify-center bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button 
+                            onClick={() => update(p.id, { quantity: Math.max(0, p.quantity - 1) })}
+                            className="w-8 h-8 flex items-center justify-center bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors font-bold"
+                          >
+                            -
+                          </button>
+                          <button 
+                            onClick={() => update(p.id, { quantity: p.quantity + 1 })}
+                            className="w-8 h-8 flex items-center justify-center bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors font-bold"
+                          >
+                            +
+                          </button>
+                          <button onClick={() => remove(p.id)} className="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-red-500 transition-all rounded-lg ml-1">
+                            <Trash2 size={16} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </motion.div>
                 ))}

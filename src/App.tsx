@@ -11,7 +11,12 @@ import {
   AlertCircle,
   ShoppingBag,
   UtensilsCrossed,
-  Sparkles
+  Sparkles,
+  Smartphone,
+  QrCode,
+  Copy,
+  ExternalLink,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -100,6 +105,7 @@ function DashboardView({
   const { data: finances } = useFirestore<Finance>('finances');
   const { data: products } = useFirestore<Product>('products');
   const [seeding, setSeeding] = useState(false);
+  const [showShare, setShowShare] = useState(false);
 
   const handleSeed = async () => {
     if (confirm('Deseja importar os dados informados anteriormente? Isso preencherá suas finanças, estoque e dieta.')) {
@@ -126,6 +132,9 @@ function DashboardView({
   const budget = user.budget || 1000;
   const consumedPercent = (totalMonthlyImpact / budget) * 100;
 
+  const publicUrl = process.env.APP_URL || window.location.href;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(publicUrl)}`;
+
   return (
     <div className="space-y-6">
       <header className="flex justify-between items-center bg-white border-b border-slate-200 -mx-6 -mt-6 px-8 py-6 mb-6">
@@ -138,6 +147,13 @@ function DashboardView({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setShowShare(true)}
+            className="p-2 text-slate-300 hover:text-emerald-500 transition-colors cursor-pointer"
+            title="Acessar no Celular"
+          >
+            <Smartphone size={20} />
+          </button>
           {products.length === 0 && (
             <button 
               onClick={handleSeed}
@@ -260,6 +276,62 @@ function DashboardView({
           </button>
         </div>
       </div>
+
+      {/* Share Modal */}
+      <AnimatePresence>
+        {showShare && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-[32px] w-full max-w-xs p-8 shadow-2xl relative overflow-hidden"
+            >
+              <button 
+                onClick={() => setShowShare(false)}
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="text-center space-y-6">
+                <div className="bg-emerald-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto text-emerald-600">
+                  <Smartphone size={32} />
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 uppercase tracking-tighter">Acesso iPhone</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Escaneie para celular</p>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <img 
+                    src={qrUrl}
+                    alt="QR Code"
+                    className="w-full aspect-square rounded-lg shadow-sm"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(publicUrl);
+                      alert('Link copiado!');
+                    }}
+                    className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all"
+                  >
+                    <Copy size={14} />
+                    Copiar Link
+                  </button>
+                  <p className="text-[10px] text-slate-400 font-bold text-center leading-relaxed">
+                    No Safari do iPhone, toque em "Compartilhar" e "Adicionar à Tela de Início" para remover barras do navegador.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

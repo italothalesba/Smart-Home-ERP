@@ -11,8 +11,11 @@ import {
   Loader2, 
   ShoppingBag,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Calculator
 } from 'lucide-react';
+import { INGREDIENT_RATIOS } from '../../lib/constants';
+import { MealDetailsModal } from '../MealDetailsModal';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -29,19 +32,29 @@ const MEAL_TYPE_LABELS = {
 };
 
 const WEEK_DAYS = [
-  'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'
+  'Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'
 ];
 
+const MEAL_TYPE_ORDER = {
+  [MealType.CAFE]: 1,
+  [MealType.ALMOCO]: 2,
+  [MealType.LANCHE]: 3,
+  [MealType.JANTAR]: 4
+};
+
 export function MealView() {
-  const { data: meals, add, remove } = useFirestore<Meal>('meals');
+  const { data: meals, add, update, remove } = useFirestore<Meal>('meals');
   const [isAdding, setIsAdding] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [shoppingList, setShoppingList] = useState<string[]>([]);
+  const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [form, setForm] = useState({
-    day: 'Segunda',
+    day: 'Domingo',
     type: MealType.ALMOCO,
     title: '',
-    ingredients: ''
+    ingredients: '',
+    instructions: '',
+    peopleCount: 3
   });
 
   const handleAddMeal = (e: React.FormEvent) => {
@@ -51,15 +64,17 @@ export function MealView() {
       type: form.type,
       title: form.title,
       ingredients: form.ingredients.split(',').map(i => i.trim()).filter(i => i),
+      instructions: form.instructions,
+      peopleCount: form.peopleCount
     });
     setIsAdding(false);
-    setForm({ day: 'Segunda', type: MealType.ALMOCO, title: '', ingredients: '' });
+    setForm({ day: 'Domingo', type: MealType.ALMOCO, title: '', ingredients: '', instructions: '', peopleCount: 3 });
   };
 
   const handleGenerateList = async () => {
     if (meals.length === 0) return;
     setIsGenerating(true);
-    const mealTitles = meals.map(m => `${m.day}: ${m.title}`);
+    const mealTitles = meals.map(m => `${m.day}: ${m.title} (${m.peopleCount || 3} pessoas)`);
     const list = await generateShoppingList(mealTitles);
     setShoppingList(list);
     setIsGenerating(false);
@@ -67,47 +82,360 @@ export function MealView() {
 
   const loadSuggestedDiet = () => {
     const suggested = [
+      // Domingo
+      { 
+        day: 'Domingo', 
+        type: MealType.CAFE, 
+        title: 'Tapioca com Ovo e Frutas', 
+        ingredients: ['Tapioca', 'Ovo', 'Frutas', 'Café', 'Leite'],
+        structuredIngredients: [
+          { name: 'Tapioca', amountPerPerson: 0.1, unit: 'pct' },
+          { name: 'Ovo', amountPerPerson: 2, unit: 'un' },
+          { name: 'Frutas', amountPerPerson: 1, unit: 'un' },
+          { name: 'Café', amountPerPerson: 0.015, unit: 'pct' },
+          { name: 'Leite', amountPerPerson: 0.25, unit: 'Litro' }
+        ],
+        instructions: '2 tapiocas com ovo por pessoa',
+        peopleCount: 3
+      },
+      { 
+        day: 'Domingo', 
+        type: MealType.ALMOCO, 
+        title: 'Bisteca com Batata e Salada', 
+        ingredients: ['Arroz', 'Bisteca', 'Batata', 'Salada', 'Cebola', 'Tomate'],
+        structuredIngredients: [
+          { name: 'Arroz', amountPerPerson: 0.125, unit: 'Kg' },
+          { name: 'Bisteca', amountPerPerson: 0.25, unit: 'Kg' },
+          { name: 'Batata', amountPerPerson: 0.2, unit: 'Kg' },
+          { name: 'Salada', amountPerPerson: 0.1, unit: 'un' }
+        ],
+        instructions: 'Bisteca suína com acompanhamentos',
+        peopleCount: 3
+      },
+      { 
+        day: 'Domingo', 
+        type: MealType.LANCHE, 
+        title: 'Pão com Queijo', 
+        ingredients: ['Pão', 'Queijo', 'Café'],
+        structuredIngredients: [
+          { name: 'Pão Francês', amountPerPerson: 2, unit: 'un' },
+          { name: 'Queijo Mussarela', amountPerPerson: 0.03, unit: 'Kg' },
+          { name: 'Café', amountPerPerson: 0.015, unit: 'pct' }
+        ],
+        instructions: 'Pão francês com queijo',
+        peopleCount: 3
+      },
+      { 
+        day: 'Domingo', 
+        type: MealType.JANTAR, 
+        title: 'REFEIÇÃO COMPLETA: Frango Assado', 
+        ingredients: ['Frango assado', 'Arroz', 'Batata', 'Legumes', 'Maionese', 'Salada', 'Cebola', 'Tomate', 'Coentro'],
+        structuredIngredients: [
+          { name: 'Frango', amountPerPerson: 0.25, unit: 'Kg' },
+          { name: 'Arroz', amountPerPerson: 0.125, unit: 'Kg' },
+          { name: 'Batata', amountPerPerson: 0.2, unit: 'Kg' }
+        ],
+        instructions: 'Frango assado, maionese de legumes e salada',
+        peopleCount: 3
+      },
+
       // Segunda
-      { day: 'Segunda', type: MealType.CAFE, title: 'Cuscuz (2 porções) com ovo, café com leite e fritas', ingredients: ['Cuscuz', 'Ovo', 'Café', 'Leite', 'Frutas'] },
-      { day: 'Segunda', type: MealType.ALMOCO, title: 'Sobra de Domingo', ingredients: [] },
-      { day: 'Segunda', type: MealType.LANCHE, title: '1/3 CreamCracker, goiabada e café', ingredients: ['CreamCracker', 'Goiabada', 'Café'] },
-      { day: 'Segunda', type: MealType.JANTAR, title: 'Macarrão à Bolonhesa Enriquecido', ingredients: ['Macarrão', 'Carne moída', 'Molho de tomate (2 pct)', 'Milho', 'Ervilha', 'Cebola', 'Tomate', 'Coentro', 'Alho', 'Creme de Leite'] },
+      { 
+        day: 'Segunda', 
+        type: MealType.CAFE, 
+        title: 'Cuscuz com Ovo e Café com Leite', 
+        ingredients: ['Cuscuz', 'Ovo', 'Café', 'Leite', 'Frutas'],
+        structuredIngredients: [
+          { name: 'Cuscuz', amountPerPerson: 0.125, unit: 'pct' },
+          { name: 'Ovo', amountPerPerson: 2, unit: 'un' },
+          { name: 'Café', amountPerPerson: 0.015, unit: 'pct' },
+          { name: 'Leite', amountPerPerson: 0.25, unit: 'Litro' }
+        ],
+        instructions: '2 porções individuais de Cuscuz com Ovo por pessoa',
+        peopleCount: 3
+      },
+      { 
+        day: 'Segunda', 
+        type: MealType.ALMOCO, 
+        title: 'Sobra de Domingo', 
+        ingredients: [],
+        structuredIngredients: [],
+        instructions: 'Aproveitamento de sobras',
+        peopleCount: 1
+      },
+      { 
+        day: 'Segunda', 
+        type: MealType.LANCHE, 
+        title: 'CreamCracker com Goiabada', 
+        ingredients: ['CreamCracker', 'Goiabada', 'Café'],
+        structuredIngredients: [
+          { name: 'CreamCracker', amountPerPerson: 0.05, unit: 'pct' },
+          { name: 'Café', amountPerPerson: 0.015, unit: 'pct' }
+        ],
+        instructions: '1/3 de pacote de CreamCracker',
+        peopleCount: 1
+      },
+      { 
+        day: 'Segunda', 
+        type: MealType.JANTAR, 
+        title: 'Macarrão à Bolonhesa', 
+        ingredients: ['Macarrão', 'Carne moída', 'Molho de tomate', 'Milho', 'Ervilha', 'Cebola', 'Tomate', 'Coentro', 'Alho'],
+        structuredIngredients: [
+          { name: 'Macarrão', amountPerPerson: 0.125, unit: 'pct' },
+          { name: 'Carne Moída', amountPerPerson: 0.2, unit: 'Kg' },
+          { name: 'Molho de Tomate', amountPerPerson: 0.25, unit: 'un' }
+        ],
+        instructions: '1 pct Macarrão, 2 pct molho',
+        peopleCount: 4
+      },
       
       // Terça
-      { day: 'Terça', type: MealType.CAFE, title: '2 Tapiocas com ovo, café com leite e banana', ingredients: ['Tapioca', 'Ovo', 'Café', 'Leite', 'Banana'] },
-      { day: 'Terça', type: MealType.ALMOCO, title: 'Sobra de Segunda', ingredients: [] },
-      { day: 'Terça', type: MealType.LANCHE, title: '2 Pães com mortadela defumada, café e 1 laranja', ingredients: ['Pão', 'Mortadela', 'Café', 'Laranja'] },
-      { day: 'Terça', type: MealType.JANTAR, title: 'Arroz, Frango ensopado e salada colorida', ingredients: ['Arroz', 'Frango', 'Cenoura', 'Batata', 'Cebola', 'Tomate', 'Coentro', 'Alho'] },
+      { 
+        day: 'Terça', 
+        type: MealType.CAFE, 
+        title: 'Tapioca com Ovo e Banana', 
+        ingredients: ['Tapioca', 'Ovo', 'Café', 'Leite', 'Banana'],
+        structuredIngredients: [
+          { name: 'Tapioca', amountPerPerson: 0.1, unit: 'pct' },
+          { name: 'Ovo', amountPerPerson: 2, unit: 'un' },
+          { name: 'Café', amountPerPerson: 0.015, unit: 'pct' },
+          { name: 'Leite', amountPerPerson: 0.25, unit: 'Litro' },
+          { name: 'Banana', amountPerPerson: 1, unit: 'un' }
+        ],
+        instructions: '2 tapiocas com ovo por pessoa',
+        peopleCount: 3
+      },
+      { 
+        day: 'Terça', 
+        type: MealType.ALMOCO, 
+        title: 'Sobra de Segunda', 
+        ingredients: [],
+        structuredIngredients: [],
+        instructions: 'Aproveitamento de sobras',
+        peopleCount: 1
+      },
+      { 
+        day: 'Terça', 
+        type: MealType.LANCHE, 
+        title: 'Pão com Mortadela Defumada', 
+        ingredients: ['Pão', 'Mortadela', 'Café', 'Laranja'],
+        structuredIngredients: [
+          { name: 'Pão Francês', amountPerPerson: 2, unit: 'un' },
+          { name: 'Mortadela', amountPerPerson: 0.05, unit: 'Kg' },
+          { name: 'Café', amountPerPerson: 0.015, unit: 'pct' },
+          { name: 'Laranja', amountPerPerson: 1, unit: 'un' }
+        ],
+        instructions: '2 Pães, mortadela, 1 laranja',
+        peopleCount: 1
+      },
+      { 
+        day: 'Terça', 
+        type: MealType.JANTAR, 
+        title: 'Frango Ensopado com Legumes', 
+        ingredients: ['Arroz', 'Frango', 'Cenoura', 'Batata', 'Cebola', 'Coentro', 'Alho'],
+        structuredIngredients: [
+          { name: 'Arroz', amountPerPerson: 0.125, unit: 'Kg' },
+          { name: 'Frango', amountPerPerson: 0.2, unit: 'Kg' }
+        ],
+        instructions: 'Frango cozido com cenoura e batata',
+        peopleCount: 4
+      },
 
       // Quarta
-      { day: 'Quarta', type: MealType.CAFE, title: '1/3 CreamCracker, café com leite e 1 ovo mexido', ingredients: ['CreamCracker', 'Café', 'Leite', 'Ovo'] },
-      { day: 'Quarta', type: MealType.ALMOCO, title: 'Cuscuz, calabresa refogada e salada verde', ingredients: ['Cuscuz', 'Calabresa', 'Salada verde', 'Verduras', 'Café'] },
-      { day: 'Quarta', type: MealType.LANCHE, title: '2 Pães com ovo e café', ingredients: ['Pão', 'Ovo', 'Café'] },
-      { day: 'Quarta', type: MealType.JANTAR, title: 'Arroz, Fígado acebolado, salada e abacaxi', ingredients: ['Arroz', 'Fígado', 'Cebola', 'Tomate', 'Repolho', 'Abacaxi'] },
+      { 
+        day: 'Quarta', 
+        type: MealType.CAFE, 
+        title: 'CreamCracker com Ovo Mexido', 
+        ingredients: ['CreamCracker', 'Café', 'Leite', 'Ovo'],
+        structuredIngredients: [
+          { name: 'CreamCracker', amountPerPerson: 0.05, unit: 'pct' },
+          { name: 'Café', amountPerPerson: 0.015, unit: 'pct' },
+          { name: 'Ovo', amountPerPerson: 2, unit: 'un' }
+        ],
+        instructions: '1/3 CreamCracker p/ pessoa, 1 Ovo mexido p/ pessoa',
+        peopleCount: 3
+      },
+      { 
+        day: 'Quarta', 
+        type: MealType.ALMOCO, 
+        title: 'Cuscuz com Calabresa Refogada', 
+        ingredients: ['Cuscuz', 'Calabresa', 'Verduras', 'Café'],
+        structuredIngredients: [
+          { name: 'Cuscuz', amountPerPerson: 0.125, unit: 'pct' },
+          { name: 'Calabresa', amountPerPerson: 0.1, unit: 'pct' }
+        ],
+        instructions: 'Cuscuz com calabresa e salada verde',
+        peopleCount: 2
+      },
+      { 
+        day: 'Quarta', 
+        type: MealType.LANCHE, 
+        title: 'Pão com Ovo', 
+        ingredients: ['Pão', 'Ovo', 'Café'],
+        structuredIngredients: [
+          { name: 'Pão Francês', amountPerPerson: 2, unit: 'un' },
+          { name: 'Ovo', amountPerPerson: 2, unit: 'un' }
+        ],
+        instructions: 'Pão com ovo e café',
+        peopleCount: 2
+      },
+      { 
+        day: 'Quarta', 
+        type: MealType.JANTAR, 
+        title: 'Fígado Acebolado e Salada', 
+        ingredients: ['Arroz', 'Fígado', 'Cebola', 'Tomate', 'Repolho', 'Abacaxi'],
+        structuredIngredients: [
+          { name: 'Arroz', amountPerPerson: 0.125, unit: 'Kg' },
+          { name: 'Fígado', amountPerPerson: 0.2, unit: 'Kg' },
+          { name: 'Abacaxi', amountPerPerson: 0.1, unit: 'un' }
+        ],
+        instructions: 'Fígado acebolado com salada e abacaxi',
+        peopleCount: 4
+      },
 
       // Quinta
-      { day: 'Quinta', type: MealType.CAFE, title: 'Cuscuz (2 porções) com ovo, café com leite e frutas', ingredients: ['Cuscuz', 'Ovo', 'Café', 'Leite', 'Frutas'] },
-      { day: 'Quinta', type: MealType.ALMOCO, title: 'Sobra de Quarta', ingredients: [] },
-      { day: 'Quinta', type: MealType.LANCHE, title: 'Bananada com 1/3 CreamCracker', ingredients: ['Bananada', 'CreamCracker'] },
-      { day: 'Quinta', type: MealType.JANTAR, title: 'Macarrão com calabresa e queijo', ingredients: ['Macarrão', 'Calabresa', 'Creme de leite', 'Queijo', 'Alho', 'Cebola'] },
+      { 
+        day: 'Quinta', 
+        type: MealType.CAFE, 
+        title: 'Cuscuz com Ovo', 
+        ingredients: ['Cuscuz', 'Ovo', 'Café', 'Leite', 'Frutas'],
+        structuredIngredients: [
+          { name: 'Cuscuz', amountPerPerson: 0.125, unit: 'pct' },
+          { name: 'Ovo', amountPerPerson: 2, unit: 'un' }
+        ],
+        instructions: '2 porções individuais de Cuscuz com Ovo por pessoa',
+        peopleCount: 3
+      },
+      { 
+        day: 'Quinta', 
+        type: MealType.ALMOCO, 
+        title: 'Sobra de Quarta', 
+        ingredients: [],
+        structuredIngredients: [],
+        instructions: 'Aproveitamento de sobras',
+        peopleCount: 1
+      },
+      { 
+        day: 'Quinta', 
+        type: MealType.LANCHE, 
+        title: 'Bananada com CreamCracker', 
+        ingredients: ['Bananada', 'CreamCracker'],
+        structuredIngredients: [
+          { name: 'CreamCracker', amountPerPerson: 0.05, unit: 'pct' }
+        ],
+        instructions: 'Bananada com 1/3 de cream cracker',
+        peopleCount: 1
+      },
+      { 
+        day: 'Quinta', 
+        type: MealType.JANTAR, 
+        title: 'Macarrão com Calabresa e Queijo', 
+        ingredients: ['Macarrão', 'Calabresa', 'Creme de leite', 'Queijo', 'Alho', 'Cebola'],
+        structuredIngredients: [
+          { name: 'Macarrão', amountPerPerson: 0.125, unit: 'pct' },
+          { name: 'Calabresa', amountPerPerson: 0.1, unit: 'pct' },
+          { name: 'Queijo Mussarela', amountPerPerson: 0.03, unit: 'Kg' }
+        ],
+        instructions: 'Macarrão cremoso com calabresa',
+        peopleCount: 4
+      },
 
       // Sexta
-      { day: 'Sexta', type: MealType.CAFE, title: '2 Pães com mortadela defumada e café com leite', ingredients: ['Pão', 'Mortadela', 'Café', 'Leite'] },
-      { day: 'Sexta', type: MealType.ALMOCO, title: 'Sobra de Quinta', ingredients: [] },
-      { day: 'Sexta', type: MealType.LANCHE, title: 'Cuscuz com ovo e café', ingredients: ['Cuscuz', 'Ovo', 'Café'] },
-      { day: 'Sexta', type: MealType.JANTAR, title: 'Arroz, Bisteca grelhada e salada de repolho', ingredients: ['Arroz', 'Bisteca', 'Repolho', 'Cenoura', 'Cebola', 'Alho'] },
+      { 
+        day: 'Sexta', 
+        type: MealType.CAFE, 
+        title: 'Pão com Mortadela Defumada', 
+        ingredients: ['Pão', 'Mortadela', 'Café', 'Leite'],
+        structuredIngredients: [
+          { name: 'Pão Francês', amountPerPerson: 2, unit: 'un' },
+          { name: 'Mortadela', amountPerPerson: 0.05, unit: 'Kg' }
+        ],
+        instructions: '2 Pães com mortadela p/ pessoa',
+        peopleCount: 3
+      },
+      { 
+        day: 'Sexta', 
+        type: MealType.ALMOCO, 
+        title: 'Sobra de Quinta', 
+        ingredients: [],
+        structuredIngredients: [],
+        instructions: 'Aproveitamento de sobras',
+        peopleCount: 1
+      },
+      { 
+        day: 'Sexta', 
+        type: MealType.LANCHE, 
+        title: 'Cuscuz com Ovo', 
+        ingredients: ['Cuscuz', 'Ovo', 'Café'],
+        structuredIngredients: [
+          { name: 'Cuscuz', amountPerPerson: 0.125, unit: 'pct' },
+          { name: 'Ovo', amountPerPerson: 2, unit: 'un' }
+        ],
+        instructions: 'Cuscuz rápido com ovo',
+        peopleCount: 1
+      },
+      { 
+        day: 'Sexta', 
+        type: MealType.JANTAR, 
+        title: 'Bisteca Grelhada e Salada de Repolho', 
+        ingredients: ['Arroz', 'Bisteca', 'Repolho', 'Cenoura', 'Cebola', 'Alho'],
+        structuredIngredients: [
+          { name: 'Arroz', amountPerPerson: 0.125, unit: 'Kg' },
+          { name: 'Bisteca', amountPerPerson: 0.25, unit: 'Kg' }
+        ],
+        instructions: 'Bisteca com arroz e salada de repolho',
+        peopleCount: 4
+      },
 
-      // Sábado (3 pessoas)
-      { day: 'Sábado', type: MealType.CAFE, title: 'Cuscuz completo (ovo/fruta), café com leite', ingredients: ['Cuscuz', 'Ovo', 'Fruta', 'Café', 'Leite'] },
-      { day: 'Sábado', type: MealType.ALMOCO, title: 'Arroz, Frango, Vegetais e Salada Verde', ingredients: ['Arroz', 'Frango', 'Vegetais variados', 'Salada verde', 'Cebola', 'Tomate'] },
-      { day: 'Sábado', type: MealType.LANCHE, title: 'Frutas variadas e café da tarde', ingredients: ['Frutas', 'Café'] },
-      { day: 'Sábado', type: MealType.JANTAR, title: 'Macarrão ao molho com carne moída e queijo', ingredients: ['Macarrão', 'Molho de tomate', 'Carne moída', 'Queijo', 'Cebola', 'Tomate'] },
-
-      // Domingo (3 pessoas)
-      { day: 'Domingo', type: MealType.CAFE, title: 'Tapioca com ovo, frutas e café com leite', ingredients: ['Tapioca', 'Ovo', 'Frutas', 'Café', 'Leite'] },
-      { day: 'Domingo', type: MealType.ALMOCO, title: 'Arroz, Bisteca, Batata e Salada Completa', ingredients: ['Arroz', 'Bisteca', 'Batata', 'Salada', 'Cebola', 'Tomate'] },
-      { day: 'Domingo', type: MealType.LANCHE, title: 'Pães com queijo derretido e café', ingredients: ['Pão', 'Queijo', 'Café'] },
-      { day: 'Domingo', type: MealType.JANTAR, title: 'REF. COMPLETA: Frango assado, Maionese e Salada', ingredients: ['Frango assado', 'Arroz', 'Batata', 'Legumes', 'Maionese', 'Salada', 'Cebola', 'Tomate', 'Coentro'] },
+      // Sábado
+      { 
+        day: 'Sábado', 
+        type: MealType.CAFE, 
+        title: 'Cuscuz Completo', 
+        ingredients: ['Cuscuz', 'Ovo', 'Fruta', 'Café', 'Leite'],
+        structuredIngredients: [
+          { name: 'Cuscuz', amountPerPerson: 0.125, unit: 'pct' },
+          { name: 'Ovo', amountPerPerson: 2, unit: 'un' }
+        ],
+        instructions: 'Cuscuz completo com ovo e frutas',
+        peopleCount: 3
+      },
+      { 
+        day: 'Sábado', 
+        type: MealType.ALMOCO, 
+        title: 'Frango com Vegetais', 
+        ingredients: ['Arroz', 'Frango', 'Vegetais variados', 'Salada verde', 'Cebola', 'Tomate'],
+        structuredIngredients: [
+          { name: 'Arroz', amountPerPerson: 0.125, unit: 'Kg' },
+          { name: 'Frango', amountPerPerson: 0.2, unit: 'Kg' }
+        ],
+        instructions: 'Dia completo: Arroz, Frango e Salada',
+        peopleCount: 3
+      },
+      { 
+        day: 'Sábado', 
+        type: MealType.LANCHE, 
+        title: 'Frutas Variadas', 
+        ingredients: ['Frutas', 'Café'],
+        structuredIngredients: [
+          { name: 'Frutas', amountPerPerson: 1, unit: 'un' }
+        ],
+        instructions: 'Mix de frutas da estação',
+        peopleCount: 3
+      },
+      { 
+        day: 'Sábado', 
+        type: MealType.JANTAR, 
+        title: 'Macarrão com Carne Moída e Queijo', 
+        ingredients: ['Macarrão', 'Molho de tomate', 'Carne moída', 'Queijo', 'Cebola', 'Tomate'],
+        structuredIngredients: [
+          { name: 'Macarrão', amountPerPerson: 0.125, unit: 'pct' },
+          { name: 'Carne Moída', amountPerPerson: 0.2, unit: 'Kg' },
+          { name: 'Molho de Tomate', amountPerPerson: 0.25, unit: 'un' }
+        ],
+        instructions: 'Macarrão ao molho de tomate com queijo',
+        peopleCount: 3
+      },
     ];
 
     suggested.forEach(meal => {
@@ -168,17 +496,28 @@ export function MealView() {
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">Tipo</label>
-              <select
-                value={form.type}
-                onChange={e => setForm({...form, type: e.target.value as MealType})}
-                className="w-full px-5 py-3 border border-slate-100 bg-slate-50 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer"
-              >
-                {Object.entries(MEAL_TYPE_LABELS).map(([val, label]) => (
-                  <option key={val} value={val}>{label}</option>
-                ))}
-              </select>
+              <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">Pessoas</label>
+              <input 
+                type="number"
+                min="1"
+                required
+                value={form.peopleCount}
+                onChange={e => setForm({...form, peopleCount: parseInt(e.target.value) || 1})}
+                className="w-full px-5 py-3 border border-slate-100 bg-slate-50 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+              />
             </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">Tipo de Refeição</label>
+            <select
+              value={form.type}
+              onChange={e => setForm({...form, type: e.target.value as MealType})}
+              className="w-full px-5 py-3 border border-slate-100 bg-slate-50 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer"
+            >
+              {Object.entries(MEAL_TYPE_LABELS).map(([val, label]) => (
+                <option key={val} value={val}>{label}</option>
+              ))}
+            </select>
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">Nome do Prato</label>
@@ -192,11 +531,20 @@ export function MealView() {
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">Ingredientes (Sugerido)</label>
-            <textarea 
+            <input 
               placeholder="Separe por vírgula"
               value={form.ingredients}
               onChange={e => setForm({...form, ingredients: e.target.value})}
-              className="w-full px-5 py-3 border border-slate-100 bg-slate-50 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition-all h-24 resize-none"
+              className="w-full px-5 py-3 border border-slate-100 bg-slate-50 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">Detalhes (Pessoas / Qtdas)</label>
+            <textarea 
+              placeholder="Ex: 3 pessoas - 2 porções individuais"
+              value={form.instructions}
+              onChange={e => setForm({...form, instructions: e.target.value})}
+              className="w-full px-5 py-3 border border-slate-100 bg-slate-50 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition-all h-20 resize-none"
             />
           </div>
           <button type="submit" className="w-full bg-slate-900 text-white font-black py-4 rounded-xl shadow-lg uppercase tracking-widest text-xs hover:bg-slate-800 transition-colors">
@@ -207,7 +555,10 @@ export function MealView() {
 
       <div className="space-y-8">
         {WEEK_DAYS.map(day => {
-          const dayMeals = meals.filter(m => m.day === day);
+          const dayMeals = meals
+            .filter(m => m.day === day)
+            .sort((a, b) => (MEAL_TYPE_ORDER[a.type] || 0) - (MEAL_TYPE_ORDER[b.type] || 0));
+
           if (dayMeals.length === 0) return null;
 
           return (
@@ -219,18 +570,48 @@ export function MealView() {
               </div>
               <div className="space-y-3">
                 {dayMeals.map(meal => (
-                  <div key={meal.id} className="bg-white rounded-[24px] p-4 border border-slate-100 shadow-sm flex items-start justify-between gap-4">
-                    <div className="flex gap-4">
+                  <div 
+                    key={meal.id} 
+                    className="bg-white rounded-[24px] p-4 border border-slate-100 shadow-sm flex items-start justify-between gap-4 transition-all group"
+                  >
+                    <div className="flex gap-4 flex-1">
                       <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
                         <ChefHat size={24} />
                       </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center justify-between">
                           <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-full">
                             {MEAL_TYPE_LABELS[meal.type]}
                           </span>
+                          <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">Pessoas:</span>
+                            <input 
+                              type="number"
+                              min="1"
+                              defaultValue={meal.peopleCount || 1}
+                              onBlur={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (!isNaN(val) && val !== meal.peopleCount) {
+                                  update(meal.id, { peopleCount: val });
+                                }
+                              }}
+                              className="text-[10px] font-black text-slate-900 bg-transparent w-8 outline-none text-center"
+                            />
+                          </div>
                         </div>
                         <h4 className="text-sm font-bold text-slate-900">{meal.title}</h4>
+                        <button 
+                          onClick={() => setSelectedMeal(meal)}
+                          className="flex items-center gap-2 hover:bg-emerald-50 px-2 py-1 -ml-2 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Calculator size={10} className="text-emerald-500" />
+                          <span className="text-[10px] font-bold text-emerald-600 uppercase">Calculadora de Dieta</span>
+                        </button>
+                        {meal.instructions && (
+                          <p className="text-[10px] font-bold text-slate-500 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                            {meal.instructions}
+                          </p>
+                        )}
                         {meal.ingredients && meal.ingredients.length > 0 && (
                           <p className="text-[10px] text-slate-400 font-medium italic">
                             Ingredientes: {meal.ingredients.join(', ')}
@@ -238,7 +619,13 @@ export function MealView() {
                         )}
                       </div>
                     </div>
-                    <button onClick={() => remove(meal.id)} className="p-2 text-slate-200 hover:text-red-500 transition-colors">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        remove(meal.id);
+                      }} 
+                      className="p-2 text-slate-200 hover:text-red-500 transition-colors shrink-0"
+                    >
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -312,6 +699,15 @@ export function MealView() {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {selectedMeal && (
+          <MealDetailsModal 
+            meal={selectedMeal} 
+            onClose={() => setSelectedMeal(null)} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
