@@ -18,9 +18,25 @@
   --radius-xl: 12px;
 }
 
+@layer utilities {
+  .safe-pt {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .safe-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .safe-mt {
+    margin-top: env(safe-area-inset-top, 0px);
+  }
+}
+
 @layer base {
   body {
     @apply antialiased text-slate-900 bg-slate-50 font-sans;
+    min-height: -webkit-fill-available;
+  }
+  html {
+     height: -webkit-fill-available;
   }
 }
 

@@ -1,0 +1,17 @@
+{
+  "name": "Smart Home ERP",
+  "short_name": "Smart ERP",
+  "description": "Seu organizador doméstico inteligente",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3655/3655580.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

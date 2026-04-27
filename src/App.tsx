@@ -480,7 +480,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row relative overflow-hidden font-sans safe-pt">
       {/* Sidebar - Desktop */}
       <nav className="hidden lg:flex flex-col w-64 bg-white border-r border-slate-200 p-8 fixed h-full z-50">
         <div className="mb-12">
@@ -591,7 +591,7 @@ export default function App() {
       </main>
 
       {/* Bottom Nav - Mobile ONLY */}
-      <nav className="fixed bottom-0 left-0 right-0 lg:hidden bg-white/80 backdrop-blur-2xl border-t border-slate-200 px-2 py-5 flex justify-between items-center z-50 h-24 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+      <nav className="fixed bottom-0 left-0 right-0 lg:hidden bg-white/80 backdrop-blur-2xl border-t border-slate-200 px-2 flex justify-between items-center z-50 h-[calc(5rem+env(safe-area-inset-bottom))] safe-pb shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
         <NavItem icon={LayoutDashboard} label="Resumo" active={activeTab === 'dash'} onClick={() => setActiveTab('dash')} />
         <NavItem icon={ShoppingBag} label="Estoque" active={activeTab === 'market'} onClick={() => setActiveTab('market')} />
         <div className="relative -top-10">

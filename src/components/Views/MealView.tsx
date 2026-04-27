@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useFirestore } from '../../hooks/useFirestore';
-import { Meal, MealType, Product, MealIngredient } from '../../types';
+import { Meal, MealType, Product, MealIngredient, Finance, FinanceType, FinanceStatus } from '../../types';
 import { generateShoppingList } from '../../lib/gemini';
 import { 
   ChefHat, 
@@ -46,6 +46,7 @@ const MEAL_TYPE_ORDER = {
 export function MealView() {
   const { data: meals, add, update, remove } = useFirestore<Meal>('meals');
   const { data: products, update: updateProduct } = useFirestore<Product>('products');
+  const { add: addFinance } = useFirestore<Finance>('finances');
   const [isAdding, setIsAdding] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [shoppingList, setShoppingList] = useState<string[]>([]);
@@ -155,6 +156,63 @@ export function MealView() {
 
     if (meal.structuredIngredients) {
       syncPantryOnMealChange(meal.structuredIngredients, newCount);
+    }
+  };
+
+  const handleSyncDietAndStock = async () => {
+    if (meals.length === 0) return;
+    setIsGenerating(true);
+
+    try {
+      // 1. Map current requirements
+      const requirements: Record<string, number> = {};
+      
+      meals.forEach(meal => {
+        if (!meal.structuredIngredients) return;
+        meal.structuredIngredients.forEach(ing => {
+          if (!ing.productId) return;
+          const people = meal.peopleCount || 3;
+          const totalNeeded = ing.amountPerPerson * people;
+          requirements[ing.productId] = (requirements[ing.productId] || 0) + totalNeeded;
+        });
+      });
+
+      // 2. Calculate Deficit and Cost
+      let totalFeiraCost = 0;
+      const list: string[] = [];
+
+      products.forEach(product => {
+        const needed = requirements[product.id] || 0;
+        const deficit = needed - product.quantity;
+
+        if (deficit > 0) {
+          const itemCost = deficit * (product.price || 0);
+          totalFeiraCost += itemCost;
+          list.push(`${product.name}: ${deficit.toFixed(2)}${product.unit} → R$ ${itemCost.toFixed(2)}`);
+        }
+      });
+
+      setShoppingList(list);
+
+      // 3. Add to Finances if there's a cost
+      if (totalFeiraCost > 0) {
+        await addFinance({
+          description: `Feira Semanal (${new Date().toLocaleDateString('pt-BR')})`,
+          value: totalFeiraCost,
+          type: FinanceType.EXTRA,
+          status: FinanceStatus.PENDENTE,
+          dueDate: new Date().toISOString(),
+          ownerId: 'system' // Hook handles ownerId usually, but keeping type safe
+        });
+        alert(`Sincronização Concluída!\n\nValor total da feira: R$ ${totalFeiraCost.toFixed(2)}\nLançado em Finanças com sucesso.`);
+      } else {
+        alert('Estoque está em dia com a dieta! Nenhuma compra necessária.');
+      }
+    } catch (error) {
+      console.error('Sync Error:', error);
+      alert('Erro ao sincronizar. Verifique os dados do estoque.');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -811,12 +869,12 @@ export function MealView() {
                     </p>
 
                     <button 
-                      onClick={handleGenerateList}
+                      onClick={handleSyncDietAndStock}
                       disabled={isGenerating || meals.length === 0}
                       className="w-full bg-emerald-600 disabled:opacity-50 text-white font-black py-5 rounded-2xl shadow-xl shadow-emerald-950/40 flex items-center justify-center gap-3 uppercase tracking-widest text-xs active:scale-95 cursor-pointer"
                     >
                       {isGenerating ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
-                      {isGenerating ? 'Calculando Insumos...' : 'Gerar Lista de Compras'}
+                      {isGenerating ? 'Calculando Logística...' : 'Sincronizar Estoque & Finanças'}
                     </button>
                   </div>
                 )}
