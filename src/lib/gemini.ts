@@ -24,7 +24,7 @@ export async function testGeminiConnection(): Promise<{ success: boolean; messag
     }
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
       contents: "ping",
     });
 
@@ -53,7 +53,7 @@ LEI IMUTÁVEL:
 Retorne APENAS o JSON conforme o schema. O metadata deve conter observações como 'Banco', 'Data' ou 'Total NF'.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
       contents: [
         { text: prompt },
         { 
@@ -98,7 +98,7 @@ If no item details, return only the total with name 'Total Nota Fiscal'.
 Return ONLY a JSON: [{nome: string, preco: number}]`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -124,7 +124,7 @@ Return clean and concise product/ingredient names.
 Respond ONLY with a JSON on the 'itens' key: { "itens": string[] }`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",

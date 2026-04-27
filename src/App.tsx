@@ -124,7 +124,7 @@ function DashboardView({
   }, 0);
 
   const lowStockItems = products.filter(p => p.quantity <= (p.minStock || 0));
-  const budget = user.budget || 1000;
+  const budget = user?.budget || 1300;
   const consumedPercent = (totalMonthlyImpact / budget) * 100;
 
   const publicUrl = process.env.APP_URL || window.location.href;
@@ -139,7 +139,7 @@ function DashboardView({
           </h1>
           <div className="flex items-center gap-2 mt-0.5">
             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
-              Olá, {user.displayName?.split(' ')[0]} • v1.0
+              Olá, {user?.displayName?.split(' ')[0] || 'Usuário'} • v1.0
             </p>
             {geminiStatus && (
               <span className={cn(
