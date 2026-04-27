@@ -1,4 +1,5 @@
 import { auth, googleProvider, db } from './lib/firebase';
+import { cn } from './lib/utils';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import React, { useState, useEffect } from 'react';

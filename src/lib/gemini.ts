@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 
 const getGeminiKey = () => {
   const key = process.env.GEMINI_API_KEY;
@@ -8,11 +8,12 @@ const getGeminiKey = () => {
   return key || 'MISSING_KEY';
 };
 
-const ai = new GoogleGenAI({ apiKey: getGeminiKey() });
+const genAI = new GoogleGenerativeAI(getGeminiKey());
 
 export interface ReceiptItem {
   nome: string;
   preco: number;
+  metadata?: string;
 }
 
 export async function testGeminiConnection(): Promise<{ success: boolean; message: string }> {
@@ -22,12 +23,11 @@ export async function testGeminiConnection(): Promise<{ success: boolean; messag
       return { success: false, message: "API Key ausente nas variáveis de ambiente." };
     }
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [{ text: "ping" }],
-    });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent("ping");
+    const response = await result.response;
 
-    if (response.text) {
+    if (response.text()) {
       return { success: true, message: "Conexão com Gemini estabelecida com sucesso (Free Tier)." };
     }
     return { success: false, message: "Resposta vazia do Gemini." };
@@ -39,40 +39,18 @@ export async function testGeminiConnection(): Promise<{ success: boolean; messag
 
 export async function processMarketReceipt(base64Image: string): Promise<ReceiptItem[]> {
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [
-        {
-          inlineData: {
-            mimeType: "image/jpeg",
-            data: base64Image,
-          },
-        },
-        {
-          text: `Aja como um Extrator de Dados de Alta Precisão (Swiss Style).
-Analise este documento (cupom fiscal, print de extrato bancário ou recibo).
-
-LEI IMUTÁVEL:
-1. PRECISÃO ABSOLUTA: Se um dado não estiver 100% legível, retorne "Desconhecido". NUNCA INVENTE NOMES (Hallucination is strictly forbidden).
-2. LOGOTIPOS: Priorize nomes claros de marcas (Carrefour, Nubank, Itaú, etc).
-3. EXTRATOS BANCÁRIOS: Se o documento for um extrato, identifique a ÚLTIMA transação relevante ou o resumo do período (Entradas/Saídas).
-4. DETALHAMENTO: É OBRIGATÓRIO extrair a lista de itens (nome e preço) se for um cupom fiscal.
-5. QR CODES: Se houver um link de QR Code visível ou processado, trate os parâmetros (como vNF para valor total) como FONTE DE VERDADE.
-
-Retorne APENAS um JSON: [{nome: string, preco: number, metadata?: string}]
-O metadata deve conter observações como 'Banco', 'Data' ou 'Total NF'.`,
-        },
-      ],
-      config: {
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
-          type: Type.ARRAY,
+          type: SchemaType.ARRAY,
           items: {
-            type: Type.OBJECT,
+            type: SchemaType.OBJECT,
             properties: {
-              nome: { type: Type.STRING, description: "Nome limpo ou Desconhecido" },
-              preco: { type: Type.NUMBER, description: "Valor extraído" },
-              metadata: { type: Type.STRING, description: "Informação adicional de contexto" }
+              nome: { type: SchemaType.STRING, description: "Nome limpo ou Desconhecido" },
+              preco: { type: SchemaType.NUMBER, description: "Valor extraído" },
+              metadata: { type: SchemaType.STRING, description: "Informação adicional de contexto" }
             },
             required: ["nome", "preco"],
           },
@@ -80,8 +58,32 @@ O metadata deve conter observações como 'Banco', 'Data' ou 'Total NF'.`,
       },
     });
 
-    if (!response.text) return [];
-    return JSON.parse(response.text);
+    const prompt = `Aja como um Extrator de Dados de Alta Precisão (Swiss Style).
+Analise este documento (cupom fiscal, print de extrato bancário ou recibo).
+
+LEI IMUTÁVEL:
+1. PRECISÃO ABSOLUTA: Se um dado não estiver 100% legível, retorne "Desconhecido". NUNCA INVENTE NOMES (Hallucinations forbidden).
+2. LOGOTIPOS: Priorize nomes claros de marcas (Carrefour, Nubank, Itaú, etc).
+3. EXTRATOS BANCÁRIOS: Se o documento for um extrato, identifique a ÚLTIMA transação relevante ou o resumo do período (Entradas/Saídas).
+4. DETALHAMENTO: É OBRIGATÓRIO extrair a lista de itens (nome e preço) se for um cupom fiscal.
+5. QR CODES: Se houver um link de QR Code visível ou processado, trate os parâmetros (como vNF para valor total) como FONTE DE VERDADE.
+
+Retorne APENAS o JSON conforme o schema. O metadata deve conter observações como 'Banco', 'Data' ou 'Total NF'.`;
+
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: base64Image,
+        },
+      },
+    ]);
+
+    const response = await result.response;
+    const text = response.text();
+    if (!text) return [];
+    return JSON.parse(text);
   } catch (error) {
     console.error("AI Vision Error:", error);
     return [];
@@ -90,24 +92,24 @@ O metadata deve conter observações como 'Banco', 'Data' ou 'Total NF'.`,
 
 export async function processQrUrl(url: string): Promise<ReceiptItem[]> {
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [
-        {
-          text: `Analise o seguinte link de Cupom Fiscal (Sefaz/NF): ${url}
-Extraia o valor total e os itens principais se possível através dos parâmetros da URL (ex: vNF).
-Se não houver detalhes de itens, retorne apenas o total com o nome 'Total Nota Fiscal'.
-
-Retorne APENAS um JSON: [{nome: string, preco: number}]`,
-        },
-      ],
-      config: {
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
         responseMimeType: "application/json",
       },
     });
 
-    if (!response.text) return [];
-    const parsed = JSON.parse(response.text);
+    const prompt = `Analise o seguinte link de Cupom Fiscal (Sefaz/NF): ${url}
+Extraia o valor total e os itens principais se possível através dos parâmetros da URL (ex: vNF).
+Se não houver detalhes de itens, retorne apenas o total com o nome 'Total Nota Fiscal'.
+
+Retorne APENAS um JSON: [{nome: string, preco: number}]`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    if (!text) return [];
+    const parsed = JSON.parse(text);
     return Array.isArray(parsed) ? parsed : [];
   } catch (error) {
     console.error("QR URL parsing error:", error);
@@ -117,24 +119,24 @@ Retorne APENAS um JSON: [{nome: string, preco: number}]`,
 
 export async function generateShoppingList(meals: string[], personCount: number = 2): Promise<string[]> {
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [
-        {
-          text: `Identidade: Nutricionista e Organizador Doméstico.
-Tarefa: Gere uma lista de compras técnica para os seguintes pratos: ${meals.join(', ')}. 
-O público é brasileiro. Considere que há ${personCount} pessoas consumindo.
-Retorne nomes de produtos/ingredientes limpos e concisos.
-Responda APENAS com um JSON na chave 'itens': { "itens": string[] }`,
-        },
-      ],
-      config: {
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
         responseMimeType: "application/json",
       },
     });
 
-    if (!response.text) return [];
-    const parsed = JSON.parse(response.text);
+    const prompt = `Identidade: Nutricionista e Organizador Doméstico.
+Tarefa: Gere uma lista de compras técnica para os seguintes pratos: ${meals.join(', ')}. 
+O público é brasileiro. Considere que há ${personCount} pessoas consumindo.
+Retorne nomes de produtos/ingredientes limpos e concisos.
+Responda APENAS com um JSON na chave 'itens': { "itens": string[] }`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    if (!text) return [];
+    const parsed = JSON.parse(text);
     return parsed.itens || [];
   } catch (error) {
     console.error("AI Shopping List Error:", error);

@@ -2,14 +2,9 @@ import React, { useState, useRef } from 'react';
 import { processMarketReceipt, ReceiptItem, processQrUrl } from '../../lib/gemini';
 import { useFirestore } from '../../hooks/useFirestore';
 import { Finance, FinanceType, FinanceStatus } from '../../types';
+import { cn } from '../../lib/utils';
 import { Camera, Upload, Loader2, CheckCircle2, History, Trash2, Plus, Scan } from 'lucide-react';
 import { motion } from 'motion/react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 export function VisionView() {
   const [image, setImage] = useState<string | null>(null);
