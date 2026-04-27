@@ -1,6 +1,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+const getGeminiKey = () => {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) {
+    console.warn("GEMINI_API_KEY is not defined. AI features will be disabled.");
+  }
+  return key || 'MISSING_KEY';
+};
+
+const ai = new GoogleGenAI({ apiKey: getGeminiKey() });
 
 export interface ReceiptItem {
   nome: string;
@@ -19,17 +27,18 @@ export async function processMarketReceipt(base64Image: string): Promise<Receipt
           },
         },
         {
-          text: `Aja como um Extrator de Dados de Alta Precisão.
-Analise este documento (cupom fiscal, print de extrato ou recibo).
+          text: `Aja como um Extrator de Dados de Alta Precisão (Swiss Style).
+Analise este documento (cupom fiscal, print de extrato bancário ou recibo).
 
-REGRAS OBRIGATÓRIAS:
-1. PRECISÃO ABSOLUTA: Se um dado não estiver 100% legível, retorne "Desconhecido". NUNCA INVENTE NOMES.
-2. LOGOTIPOS: Se houver logotipos ou nomes de estabelecimentos claros (ex: Carrefour, Nubank, Pão de Açúcar), use-os.
-3. EXTRATOS: Se for um extrato bancário, extraia a última transação relevante ou o resumo.
-4. DETALHAMENTO: Extraia a lista completa de itens (nome e preço) se for um cupom fiscal.
-5. FALLBACK: Se não for um cupom ou extrato, tente extrair informações financeiras relevantes.
+LEI IMUTÁVEL:
+1. PRECISÃO ABSOLUTA: Se um dado não estiver 100% legível, retorne "Desconhecido". NUNCA INVENTE NOMES (Hallucination is strictly forbidden).
+2. LOGOTIPOS: Priorize nomes claros de marcas (Carrefour, Nubank, Itaú, etc).
+3. EXTRATOS BANCÁRIOS: Se o documento for um extrato, identifique a ÚLTIMA transação relevante ou o resumo do período (Entradas/Saídas).
+4. DETALHAMENTO: É OBRIGATÓRIO extrair a lista de itens (nome e preço) se for um cupom fiscal.
+5. QR CODES: Se houver um link de QR Code visível ou processado, trate os parâmetros (como vNF para valor total) como FONTE DE VERDADE.
 
-Retorne APENAS um JSON: [{nome: string, preco: number}]`,
+Retorne APENAS um JSON: [{nome: string, preco: number, metadata?: string}]
+O metadata deve conter observações como 'Banco', 'Data' ou 'Total NF'.`,
         },
       ],
       config: {
@@ -39,8 +48,9 @@ Retorne APENAS um JSON: [{nome: string, preco: number}]`,
           items: {
             type: Type.OBJECT,
             properties: {
-              nome: { type: Type.STRING, description: "Nome limpo do produto" },
-              preco: { type: Type.NUMBER, description: "Preço unitário ou total do item" },
+              nome: { type: Type.STRING, description: "Nome limpo ou Desconhecido" },
+              preco: { type: Type.NUMBER, description: "Valor extraído" },
+              metadata: { type: Type.STRING, description: "Informação adicional de contexto" }
             },
             required: ["nome", "preco"],
           },
@@ -52,6 +62,33 @@ Retorne APENAS um JSON: [{nome: string, preco: number}]`,
     return JSON.parse(response.text);
   } catch (error) {
     console.error("AI Vision Error:", error);
+    return [];
+  }
+}
+
+export async function processQrUrl(url: string): Promise<ReceiptItem[]> {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: [
+        {
+          text: `Analise o seguinte link de Cupom Fiscal (Sefaz/NF): ${url}
+Extraia o valor total e os itens principais se possível através dos parâmetros da URL (ex: vNF).
+Se não houver detalhes de itens, retorne apenas o total com o nome 'Total Nota Fiscal'.
+
+Retorne APENAS um JSON: [{nome: string, preco: number}]`,
+        },
+      ],
+      config: {
+        responseMimeType: "application/json",
+      },
+    });
+
+    if (!response.text) return [];
+    const parsed = JSON.parse(response.text);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error("QR URL parsing error:", error);
     return [];
   }
 }

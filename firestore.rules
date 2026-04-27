@@ -12,54 +12,60 @@ service cloud.firestore {
     }
 
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId && (request.auth.token.email_verified == true || request.auth.token.firebase.sign_in_provider == 'google.com');
+      return isSignedIn() && request.auth.uid == userId && 
+             (request.auth.token.email_verified == true || request.auth.token.firebase.sign_in_provider == 'google.com');
     }
 
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
 
     // --- Entity Specific Validations ---
     function isValidProduct(data) {
       return data.keys().hasAll(['name', 'quantity']) &&
              data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-             data.quantity is number && data.quantity >= 0;
+             data.quantity is number && data.quantity >= 0 &&
+             (data.price is number || !data.keys().contains('price')) &&
+             (!data.keys().contains('minStock') || data.minStock is number);
     }
 
     function isValidFinance(data) {
       return data.keys().hasAll(['description', 'type', 'value']) &&
              data.description is string && data.description.size() > 0 && data.description.size() <= 200 &&
              data.type in ['fixo', 'volatil', 'parcela'] &&
-             data.value is number;
+             data.value is number &&
+             (!data.keys().contains('status') || data.status in ['pendente', 'pago']);
+    }
+
+    function isValidMeal(data) {
+      return data.keys().hasAll(['day', 'type', 'title']) &&
+             data.day is string && data.type in ['cafe', 'almoco', 'lanche', 'jantar'] &&
+             data.title is string && data.title.size() <= 150;
     }
 
     function isValidUser(data) {
       return data.keys().hasAll(['uid', 'email']) &&
              data.uid == request.auth.uid &&
-             data.email == request.auth.token.email;
+             data.email == request.auth.token.email &&
+             (!data.keys().contains('budget') || data.budget is number);
     }
 
     // --- Collection Matches ---
     match /users/{userId} {
-      // PII isolation: only owner can read their profile
       allow get: if isOwner(userId);
       allow create: if isOwner(userId) && isValidUser(incoming());
       allow update: if isOwner(userId) && isValidUser(incoming()) && 
-                      incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'budget']);
+                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'budget']);
 
       match /products/{productId} {
         allow list: if isOwner(userId);
         allow get: if isOwner(userId);
         allow create: if isOwner(userId) && isValidId(productId) && isValidProduct(incoming());
-        allow update: if isOwner(userId) && isValidProduct(incoming());
+        allow update: if isOwner(userId) && isValidProduct(incoming()) && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['name', 'price', 'quantity', 'category', 'unit', 'minStock', 'updatedAt']);
         allow delete: if isOwner(userId);
       }
 
@@ -67,22 +73,23 @@ service cloud.firestore {
         allow list: if isOwner(userId);
         allow get: if isOwner(userId);
         allow create: if isOwner(userId) && isValidId(financeId) && isValidFinance(incoming());
-        allow update: if isOwner(userId) && isValidFinance(incoming());
+        allow update: if isOwner(userId) && isValidFinance(incoming()) && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['description', 'value', 'type', 'totalInstallments', 'currentInstallment', 'status', 'dueDate']);
         allow delete: if isOwner(userId);
       }
 
       match /meals/{mealId} {
         allow list: if isOwner(userId);
         allow get: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidId(mealId);
-        allow update: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(mealId) && isValidMeal(incoming());
+        allow update: if isOwner(userId) && isValidMeal(incoming());
         allow delete: if isOwner(userId);
       }
 
       match /pets/{petId} {
         allow list: if isOwner(userId);
         allow get: if isOwner(userId);
-        allow create: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(petId);
         allow update: if isOwner(userId);
         allow delete: if isOwner(userId);
       }
