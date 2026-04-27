@@ -1,26 +1,34 @@
 import { db } from './firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { MealType } from '../types';
+import { MealType, FinanceType } from '../types';
 
 export async function seedUserData(userId: string) {
   const batch: Promise<any>[] = [];
 
-  // 1. Finances (Ganhos e Gastos do usuário)
-  const finances = [
-    { title: 'Dra Neta', value: 1500, type: 'income', category: 'Trabalho' },
-    { title: 'LA Tuner', value: 800, type: 'income', category: 'Trabalho' },
-    { title: 'Pensão', value: 450, type: 'income', category: 'Outros' },
-    { title: 'Aluguel', value: 600, type: 'expense', category: 'Moradia' },
-    { title: 'Energia Abril', value: 74.91, type: 'expense', category: 'Contas' },
-    { title: 'Internet', value: 100, type: 'expense', category: 'Contas' },
-    { title: 'Plano', value: 50, type: 'expense', category: 'Contas' },
-    { title: 'Nubank', value: 76, type: 'expense', category: 'Crédito' },
-    { title: 'Green', value: 300, type: 'expense', category: 'Saúde' },
-    { title: 'Mãe', value: 250, type: 'expense', category: 'Família' },
+  // 1. Incomes (Ganhos)
+  const incomes = [
+    { description: 'Dra Neta', value: 1500, type: 'fixo' },
+    { description: 'LA Tuner', value: 800, type: 'fixo' },
+    { description: 'Pensão', value: 450, type: 'fixo' },
   ];
 
-  finances.forEach(f => {
-    batch.push(addDoc(collection(db, `users/${userId}/finances`), { ...f, ownerId: userId, updatedAt: serverTimestamp() }));
+  incomes.forEach(i => {
+    batch.push(addDoc(collection(db, `users/${userId}/incomes`), { ...i, ownerId: userId, updatedAt: serverTimestamp() }));
+  });
+
+  // 2. Finances (Saídas/Despesas)
+  const expenses = [
+    { description: 'Aluguel', value: 600, type: FinanceType.FIXA, dueDate: '10', status: 'pendente' },
+    { description: 'Energia Abril', value: 74.91, type: FinanceType.EXTRA, dueDate: new Date().toISOString(), status: 'pendente' },
+    { description: 'Internet', value: 100, type: FinanceType.FIXA, dueDate: '20', status: 'pendente' },
+    { description: 'Plano Celular', value: 50, type: FinanceType.FIXA, dueDate: '5', status: 'pendente' },
+    { description: 'Nubank', value: 76, type: FinanceType.PARCELADO, totalInstallments: 10, currentInstallment: 1, dueDate: new Date().toISOString(), status: 'pendente' },
+    { description: 'Green', value: 300, type: FinanceType.FIXA, dueDate: '1', status: 'pendente' },
+    { description: 'Mãe', value: 250, type: FinanceType.FIXA, dueDate: '1', status: 'pendente' },
+  ];
+
+  expenses.forEach(e => {
+    batch.push(addDoc(collection(db, `users/${userId}/finances`), { ...e, ownerId: userId, updatedAt: serverTimestamp() }));
   });
 
   // 2. Products (Market / Shopping List)

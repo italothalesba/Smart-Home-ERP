@@ -18,20 +18,33 @@
     },
     "Finance": {
       "title": "Finance",
-      "description": "Financial expenses and income",
+      "description": "Financial expenses",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "description": { "type": "string" },
-        "type": { "enum": ["fixo", "volatil", "parcela"] },
+        "type": { "enum": ["fixa", "parcelado", "extra"] },
         "value": { "type": "number" },
         "totalInstallments": { "type": "number" },
         "currentInstallment": { "type": "number" },
         "status": { "enum": ["pendente", "pago"] },
-        "dueDate": { "type": "string", "format": "date-time" },
+        "dueDate": { "type": "string" },
         "ownerId": { "type": "string" }
       },
       "required": ["description", "type", "value"]
+    },
+    "Income": {
+      "title": "Income",
+      "description": "Financial income",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "description": { "type": "string" },
+        "value": { "type": "number" },
+        "type": { "enum": ["fixo", "volatil"] },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["description", "value", "type", "ownerId"]
     },
     "Meal": {
       "title": "Meal",
@@ -84,6 +97,10 @@
     "/users/{userId}/finances/{financeId}": {
       "schema": "Finance",
       "description": "User financial records"
+    },
+    "/users/{userId}/incomes/{incomeId}": {
+      "schema": "Income",
+      "description": "User income records"
     },
     "/users/{userId}/meals/{mealId}": {
       "schema": "Meal",

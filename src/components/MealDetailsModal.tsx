@@ -171,7 +171,7 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
               </span>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white">
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white">
             <X size={20} />
           </button>
         </div>
@@ -183,7 +183,7 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Itens da Feira</h4>
               <button 
                 onClick={() => setIsAddingNewPantryItem(!isAddingNewPantryItem)}
-                className="text-[10px] font-black text-emerald-600 uppercase flex items-center gap-1 hover:text-emerald-700 transition-colors"
+                className="text-[10px] font-black text-emerald-600 uppercase flex items-center gap-1 hover:text-emerald-700"
               >
                 <Plus size={10} />
                 Novo Item na Feira
@@ -228,7 +228,7 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
                 <button
                   key={p.id}
                   onClick={() => selectProduct(p)}
-                  className="shrink-0 px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-bold text-slate-600 uppercase hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 transition-all"
+                  className="shrink-0 px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-bold text-slate-600 uppercase hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700"
                 >
                   {p.name}
                 </button>
@@ -250,7 +250,7 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
                       setShowSuggestions(true);
                     }}
                     onFocus={() => setShowSuggestions(true)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                   <Search size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300" />
                   
@@ -273,7 +273,7 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
                               });
                               setShowSuggestions(false);
                             }}
-                            className="w-full px-4 py-3 text-left hover:bg-emerald-50 flex items-center justify-between group transition-colors border-b border-slate-50 last:border-0"
+                            className="w-full px-4 py-3 text-left hover:bg-emerald-50 flex items-center justify-between group border-b border-slate-50 last:border-0"
                           >
                             <span className="text-sm font-bold text-slate-700">{p.name}</span>
                             <span className="text-[10px] font-bold text-slate-400 uppercase">{p.unit}</span>
@@ -290,7 +290,7 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
                     placeholder="Qtd"
                     value={newIngredient.amountPerPerson}
                     onChange={e => setNewIngredient({...newIngredient, amountPerPerson: e.target.value})}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-bold text-emerald-700"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-emerald-700"
                   />
                 </div>
                 <div className="w-20">
@@ -298,12 +298,12 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
                     placeholder="Un"
                     value={newIngredient.unit}
                     onChange={e => setNewIngredient({...newIngredient, unit: e.target.value})}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                 </div>
                 <button 
                   onClick={handleAddIngredient}
-                  className="bg-emerald-600 text-white p-3 rounded-2xl shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-colors"
+                  className="bg-emerald-600 text-white p-3 rounded-2xl shadow-lg shadow-emerald-100 hover:bg-emerald-700"
                 >
                   <Plus size={20} />
                 </button>
@@ -352,7 +352,7 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
                       </div>
                       <button 
                         onClick={() => removeIngredient(idx)}
-                        className="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 rounded-lg"
+                        className="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 hover:bg-red-50 rounded-lg"
                       >
                         <Trash2 size={16} />
                       </button>

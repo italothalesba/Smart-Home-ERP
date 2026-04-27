@@ -1,7 +1,15 @@
 export enum FinanceType {
-  FIXO = 'fixo',
-  VOLATIL = 'volatil',
-  PARCELA = 'parcela',
+  FIXA = 'fixa',
+  PARCELADO = 'parcelado',
+  EXTRA = 'extra',
+}
+
+export interface Income {
+  id: string;
+  description: string;
+  value: number;
+  type: 'fixo' | 'volatil';
+  ownerId: string;
 }
 
 export enum FinanceStatus {

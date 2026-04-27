@@ -707,10 +707,10 @@ export function MealView() {
                       <motion.div 
                         layout
                         key={meal.id} 
-                        className="bg-white rounded-[28px] p-5 border border-slate-100 shadow-sm flex items-center justify-between gap-4 transition-all hover:border-emerald-200 hover:shadow-md group"
+                        className="bg-white rounded-[28px] p-5 border border-slate-100 shadow-sm flex items-center justify-between gap-4 hover:border-emerald-200 hover:shadow-md group"
                       >
                         <div className="flex gap-4 items-center min-w-0">
-                          <div className="w-14 h-14 rounded-2xl bg-slate-50 text-slate-800 flex items-center justify-center shrink-0 shadow-sm border border-white group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                          <div className="w-14 h-14 rounded-2xl bg-slate-50 text-slate-800 flex items-center justify-center shrink-0 shadow-sm border border-white group-hover:bg-emerald-600 group-hover:text-white">
                             <ChefHat size={24} />
                           </div>
                           <div className="min-w-0">
@@ -730,7 +730,7 @@ export function MealView() {
                                </span>
                             </div>
                             <h4 className="text-sm font-black text-slate-900 truncate">{meal.title}</h4>
-                            <div className="flex items-center gap-3 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-3 mt-1.5 opacity-0 group-hover:opacity-100">
                                <button 
                                  onClick={() => setSelectedMeal(meal)}
                                  className="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-1.5 hover:underline cursor-pointer"
@@ -749,7 +749,7 @@ export function MealView() {
                         </div>
                         
                         <div className="shrink-0 hidden md:block">
-                           <ArrowRight size={16} className="text-slate-200 group-hover:text-emerald-500 transition-colors" />
+                           <ArrowRight size={16} className="text-slate-200 group-hover:text-emerald-500" />
                         </div>
                       </motion.div>
                     ))}
@@ -772,7 +772,7 @@ export function MealView() {
         {/* Right Column: AI Shopping & Action Cards */}
         <div className="lg:col-span-5 space-y-8">
            <div className="bg-slate-900 rounded-[40px] p-10 relative overflow-hidden shadow-2xl group min-h-[400px] flex flex-col justify-between">
-              <div className="absolute top-0 right-0 p-10 text-emerald-500/10 group-hover:scale-110 transition-transform duration-1000">
+              <div className="absolute top-0 right-0 p-10 text-emerald-500/10">
                 <Sparkles size={200} strokeWidth={0.5} />
               </div>
               
@@ -791,14 +791,14 @@ export function MealView() {
                   >
                     <div className="flex justify-between items-center">
                       <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest italic">Inventory Requiriments</h4>
-                      <button onClick={() => setShoppingList([])} className="p-2 bg-white/10 hover:bg-red-500/20 text-white transition-colors rounded-xl cursor-pointer">
+                      <button onClick={() => setShoppingList([])} className="p-2 bg-white/10 hover:bg-red-500/20 text-white rounded-xl cursor-pointer">
                         <Trash2 size={14} />
                       </button>
                     </div>
                     <div className="space-y-3 max-h-[300px] overflow-y-auto pr-4 custom-scrollbar">
                       {shoppingList.map((item, i) => (
                         <div key={i} className="flex items-center gap-3 text-xs text-slate-100 font-bold group/item py-1">
-                          <div className="w-2 h-2 rounded-full border-2 border-emerald-500 group-hover/item:bg-emerald-500 transition-colors" />
+                          <div className="w-2 h-2 rounded-full border-2 border-emerald-500 group-hover/item:bg-emerald-500" />
                           <span className="truncate tracking-tight">{item}</span>
                         </div>
                       ))}
@@ -813,7 +813,7 @@ export function MealView() {
                     <button 
                       onClick={handleGenerateList}
                       disabled={isGenerating || meals.length === 0}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black py-5 rounded-2xl transition-all shadow-xl shadow-emerald-950/40 flex items-center justify-center gap-3 uppercase tracking-widest text-xs active:scale-95 cursor-pointer"
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black py-5 rounded-2xl shadow-xl shadow-emerald-950/40 flex items-center justify-center gap-3 uppercase tracking-widest text-xs active:scale-95 cursor-pointer"
                     >
                       {isGenerating ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
                       {isGenerating ? 'Calculando Insumos...' : 'Gerar Lista de Compras'}

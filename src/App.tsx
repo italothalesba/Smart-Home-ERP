@@ -49,12 +49,12 @@ function NavItem({
     <button
       onClick={onClick}
       className={cn(
-        "flex flex-col items-center justify-center gap-1 p-2 transition-all relative group cursor-pointer",
+        "flex flex-col items-center justify-center gap-1 p-2 relative group cursor-pointer",
         active ? "text-emerald-600" : "text-slate-400 hover:text-slate-600"
       )}
     >
       <div className={cn(
-        "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
+        "w-10 h-10 rounded-xl flex items-center justify-center",
         active ? "bg-emerald-50" : "bg-transparent"
       )}>
         <Icon size={24} />
@@ -117,7 +117,7 @@ function DashboardView({
   };
 
   const totalMonthlyImpact = finances.reduce((acc, f) => {
-    if (f.type === FinanceType.PARCELA && f.totalInstallments) {
+    if (f.type === FinanceType.PARCELADO && f.totalInstallments) {
       return acc + (f.value / f.totalInstallments);
     }
     return acc + f.value;
@@ -144,14 +144,14 @@ function DashboardView({
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setShowShare(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-emerald-500 hover:text-emerald-600 transition-all cursor-pointer shadow-sm group"
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-emerald-500 hover:text-emerald-600 cursor-pointer shadow-sm group"
           >
-            <Smartphone size={14} className="group-hover:scale-110 transition-transform" />
+            <Smartphone size={14} />
             Sincronizar Celular
           </button>
           <button 
             onClick={onLogout}
-            className="p-2.5 bg-slate-100 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer lg:hidden"
+            className="p-2.5 bg-slate-100 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl cursor-pointer lg:hidden"
             title="Sair"
           >
             <LogOut size={18} />
@@ -162,7 +162,7 @@ function DashboardView({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Main Budget Card - Spans 2 columns on lg */}
         <Card className="lg:col-span-2 relative overflow-hidden group border-none bg-emerald-600 text-white min-h-[220px]">
-          <div className="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
+          <div className="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16" />
           
           <div className="relative z-10 h-full flex flex-col">
             <div className="flex justify-between items-start mb-auto">
@@ -212,7 +212,7 @@ function DashboardView({
 
           <button 
             onClick={() => onNavigate('ai')}
-            className="w-full mt-8 py-4 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-[10px] font-black rounded-2xl transition-all uppercase tracking-[0.2em] shadow-lg shadow-emerald-500/10 cursor-pointer"
+            className="w-full mt-8 py-4 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-[10px] font-black rounded-2xl uppercase tracking-[0.2em] shadow-lg shadow-emerald-500/10 cursor-pointer"
           >
             Acessar Scanner AI
           </button>
@@ -228,20 +228,20 @@ function DashboardView({
                 </div>
               ) : (
                 finances.slice(0, 3).map((f) => (
-                  <div key={f.id} className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-white hover:shadow-md hover:border-emerald-100 transition-all rounded-2xl border border-slate-50 group cursor-pointer">
+                  <div key={f.id} className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-white hover:shadow-md hover:border-emerald-100 rounded-2xl border border-slate-50 group cursor-pointer">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white font-black text-[9px] transition-transform group-hover:scale-110">
+                      <div className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white font-black text-[9px]">
                         {f.type[0].toUpperCase()}
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-slate-900 truncate">{f.description}</p>
                         <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest mt-0.5">
-                          {new Date(f.dueDate).toLocaleDateString()}
+                          {f.type === FinanceType.FIXA ? `Todo dia ${f.dueDate}` : new Date(f.dueDate).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
                     <p className="font-black text-slate-900 text-xs italic shrink-0">
-                      R$ {(f.type === FinanceType.PARCELA ? f.value / (f.totalInstallments || 1) : f.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {(f.type === FinanceType.PARCELADO ? f.value / (f.totalInstallments || 1) : f.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                 ))
@@ -249,7 +249,7 @@ function DashboardView({
             </div>
             <button 
               onClick={() => onNavigate('finance')}
-              className="w-full mt-4 py-3 bg-slate-50 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer"
+              className="w-full mt-4 py-3 bg-slate-50 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer"
             >
               Ver Todas Contas
             </button>
@@ -284,7 +284,7 @@ function DashboardView({
             </div>
             <button 
               onClick={() => onNavigate('market')}
-              className="w-full mt-4 py-3 bg-slate-50 text-slate-500 hover:bg-red-50 hover:text-red-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer"
+              className="w-full mt-4 py-3 bg-slate-50 text-slate-500 hover:bg-red-50 hover:text-red-600 rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer"
             >
               Gerenciar Despensa
             </button>
@@ -325,7 +325,7 @@ function DashboardView({
             >
               <button 
                 onClick={() => setShowShare(false)}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -354,7 +354,7 @@ function DashboardView({
                       navigator.clipboard.writeText(publicUrl);
                       alert('Link copiado!');
                     }}
-                    className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+                    className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest cursor-pointer"
                   >
                     <Copy size={14} />
                     Copiar Link
@@ -449,7 +449,7 @@ export default function App() {
           className="max-w-md w-full text-center space-y-12 relative z-10"
         >
           <div className="space-y-6">
-            <div className="w-24 h-24 bg-emerald-600 rounded-[32px] mx-auto flex items-center justify-center shadow-2xl shadow-emerald-200 rotate-3 transform hover:rotate-0 transition-transform">
+            <div className="w-24 h-24 bg-emerald-600 rounded-[32px] mx-auto flex items-center justify-center shadow-2xl shadow-emerald-200 rotate-3 transform">
               <LayoutDashboard size={48} className="text-white" />
             </div>
             <div className="space-y-2">
@@ -595,8 +595,8 @@ export default function App() {
           <button 
             onClick={() => setActiveTab('ai')}
             className={cn(
-              "w-16 h-16 rounded-[24px] flex items-center justify-center text-white shadow-2xl transition-all shadow-emerald-400 rotate-3",
-              activeTab === 'ai' ? "bg-slate-900 rotate-0" : "bg-emerald-600 hover:scale-110 active:scale-95"
+              "w-16 h-16 rounded-[24px] flex items-center justify-center text-white shadow-2xl shadow-emerald-400 rotate-3",
+              activeTab === 'ai' ? "bg-slate-900 rotate-0" : "bg-emerald-600 active:scale-95"
             )}
           >
             <Camera size={28} />
@@ -624,7 +624,7 @@ function SidebarNavItem({
     <button
       onClick={onClick}
       className={cn(
-        "w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all font-bold text-[11px] uppercase tracking-widest cursor-pointer",
+        "w-full flex items-center gap-4 px-4 py-3 rounded-2xl font-bold text-[11px] uppercase tracking-widest cursor-pointer",
         active 
           ? "bg-emerald-50 text-emerald-700 shadow-sm shadow-emerald-100" 
           : "text-slate-400 hover:text-slate-700 hover:bg-slate-50"

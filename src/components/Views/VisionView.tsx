@@ -51,7 +51,7 @@ export function VisionView() {
     await addFinance({
       description: items[0]?.metadata || `Compra/Pagemento (AI Vision: ${items.length} itens)`,
       value: total,
-      type: FinanceType.VOLATIL,
+      type: FinanceType.EXTRA,
       dueDate: new Date().toISOString(),
       status: FinanceStatus.PAGO
     });
@@ -115,7 +115,7 @@ export function VisionView() {
             <div 
               onClick={() => fileInputRef.current?.click()}
               className={cn(
-                "border-2 border-dashed rounded-[32px] aspect-sqaure min-h-[300px] flex flex-col items-center justify-center p-10 cursor-pointer transition-all relative overflow-hidden group",
+                "border-2 border-dashed rounded-[32px] aspect-sqaure min-h-[300px] flex flex-col items-center justify-center p-10 cursor-pointer relative overflow-hidden group",
                 image ? "border-emerald-500 bg-emerald-50/10" : "border-slate-100 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300"
               )}
             >
@@ -136,7 +136,7 @@ export function VisionView() {
               <div className="relative z-10 text-center">
                  <div className={cn(
                    "w-20 h-20 rounded-[28px] flex items-center justify-center mx-auto mb-6 shadow-xl transition-all",
-                   image ? "bg-emerald-600 text-white" : "bg-white text-slate-300 group-hover:scale-110"
+                   image ? "bg-emerald-600 text-white" : "bg-white text-slate-300"
                  )}>
                    <Camera size={36} />
                  </div>
@@ -148,7 +148,7 @@ export function VisionView() {
             {image && !loading && items.length === 0 && (
               <button 
                 onClick={processImage}
-                className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl flex items-center justify-center gap-3 uppercase tracking-[0.2em] text-[10px] hover:bg-slate-800 transition-all active:scale-95 cursor-pointer"
+                className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl flex items-center justify-center gap-3 uppercase tracking-[0.2em] text-[10px] hover:bg-slate-800 active:scale-95 cursor-pointer"
               >
                 <Sparkles size={18} className="text-emerald-400" />
                 Processar com AI Vision
@@ -235,7 +235,7 @@ export function VisionView() {
                       </div>
                       <button 
                         onClick={saveToFinances}
-                        className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-100 hover:bg-emerald-700 transition-all active:scale-95 cursor-pointer"
+                        className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-95 cursor-pointer"
                       >
                         Lançar em Finanças
                       </button>
