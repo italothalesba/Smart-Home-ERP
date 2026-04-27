@@ -1,0 +1,97 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Items in the home inventory/pantry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "quantity": { "type": "number" },
+        "category": { "type": "string" },
+        "unit": { "type": "string" },
+        "minStock": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "quantity"]
+    },
+    "Finance": {
+      "title": "Finance",
+      "description": "Financial expenses and income",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "enum": ["fixo", "volatil", "parcela"] },
+        "value": { "type": "number" },
+        "totalInstallments": { "type": "number" },
+        "currentInstallment": { "type": "number" },
+        "status": { "enum": ["pendente", "pago"] },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["description", "type", "value"]
+    },
+    "Meal": {
+      "title": "Meal",
+      "description": "Planned meals for the week",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "day": { "type": "string" },
+        "type": { "enum": ["cafe", "almoco", "lanche", "jantar"] },
+        "title": { "type": "string" },
+        "ingredients": { "type": "array", "items": { "type": "string" } },
+        "instructions": { "type": "string" }
+      },
+      "required": ["day", "type", "title"]
+    },
+    "Pet": {
+      "title": "Pet",
+      "description": "Pet consumption and costs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "species": { "type": "string" },
+        "weeklyKgConsumption": { "type": "number" },
+        "kgPrice": { "type": "number" }
+      },
+      "required": ["name", "species"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User specific data and settings",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "budget": { "type": "number" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles"
+    },
+    "/users/{userId}/products/{productId}": {
+      "schema": "Product",
+      "description": "User pantry inventory"
+    },
+    "/users/{userId}/finances/{financeId}": {
+      "schema": "Finance",
+      "description": "User financial records"
+    },
+    "/users/{userId}/meals/{mealId}": {
+      "schema": "Meal",
+      "description": "User meal planning"
+    },
+    "/users/{userId}/pets/{petId}": {
+      "schema": "Pet",
+      "description": "User pet management"
+    }
+  }
+}

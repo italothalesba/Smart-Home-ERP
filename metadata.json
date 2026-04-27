@@ -1,0 +1,6 @@
+{
+  "name": "Smart Home ERP",
+  "description": "Sistema completo de gestão doméstica: finanças, estoque de alimentos, planejamento de dietas e automação de compras com IA Vision.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["AI Vision", "Financial Management", "Inventory Tracking"]
+}

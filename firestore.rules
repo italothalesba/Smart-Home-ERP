@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Entities validation
+    function isValidProduct(data) {
+      return data.keys().hasAll(['name', 'quantity']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.quantity is number && data.quantity >= 0;
+    }
+
+    function isValidFinance(data) {
+      return data.keys().hasAll(['description', 'type', 'value']) &&
+             data.description is string && data.description.size() > 0 && data.description.size() <= 200 &&
+             data.type in ['fixo', 'volatil', 'parcela'] &&
+             data.value is number;
+    }
+
+    function isValidMeal(data) {
+      return data.keys().hasAll(['day', 'type', 'title']) &&
+             data.day is string && data.type in ['cafe', 'almoco', 'lanche', 'jantar'] &&
+             data.title is string && data.title.size() > 0;
+    }
+
+    function isValidPet(data) {
+      return data.keys().hasAll(['name', 'species']) &&
+             data.name is string && data.species is string;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+             data.uid == request.auth.uid &&
+             data.email == request.auth.token.email;
+    }
+
+    // Collection matches
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'budget']);
+
+      match /products/{productId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(productId) && isValidProduct(request.resource.data);
+        allow update: if isOwner(userId) && isValidProduct(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /finances/{financeId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(financeId) && isValidFinance(request.resource.data);
+        allow update: if isOwner(userId) && isValidFinance(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /meals/{mealId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(mealId) && isValidMeal(request.resource.data);
+        allow update: if isOwner(userId) && isValidMeal(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /pets/{petId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(petId) && isValidPet(request.resource.data);
+        allow update: if isOwner(userId) && isValidPet(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}
