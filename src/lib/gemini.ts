@@ -15,6 +15,28 @@ export interface ReceiptItem {
   preco: number;
 }
 
+export async function testGeminiConnection(): Promise<{ success: boolean; message: string }> {
+  try {
+    const key = getGeminiKey();
+    if (key === 'MISSING_KEY') {
+      return { success: false, message: "API Key ausente nas variáveis de ambiente." };
+    }
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [{ text: "ping" }],
+    });
+
+    if (response.text) {
+      return { success: true, message: "Conexão com Gemini estabelecida com sucesso (Free Tier)." };
+    }
+    return { success: false, message: "Resposta vazia do Gemini." };
+  } catch (error: any) {
+    console.error("Gemini Test Error:", error);
+    return { success: false, message: error.message || "Erro desconhecido na API do Gemini." };
+  }
+}
+
 export async function processMarketReceipt(base64Image: string): Promise<ReceiptItem[]> {
   try {
     const response = await ai.models.generateContent({
@@ -69,7 +91,7 @@ O metadata deve conter observações como 'Banco', 'Data' ou 'Total NF'.`,
 export async function processQrUrl(url: string): Promise<ReceiptItem[]> {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash-preview",
       contents: [
         {
           text: `Analise o seguinte link de Cupom Fiscal (Sefaz/NF): ${url}
@@ -96,7 +118,7 @@ Retorne APENAS um JSON: [{nome: string, preco: number}]`,
 export async function generateShoppingList(meals: string[], personCount: number = 2): Promise<string[]> {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash-preview",
       contents: [
         {
           text: `Identidade: Nutricionista e Organizador Doméstico.

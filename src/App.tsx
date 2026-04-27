@@ -96,11 +96,13 @@ import { seedUserData } from './lib/seedData';
 function DashboardView({ 
   user, 
   onLogout, 
-  onNavigate 
+  onNavigate,
+  geminiStatus
 }: { 
   user: UserProfile, 
   onLogout: () => void, 
-  onNavigate: (tab: any) => void 
+  onNavigate: (tab: any) => void,
+  geminiStatus: { success: boolean; message: string } | null
 }) {
   const { data: finances } = useFirestore<Finance>('finances');
   const { data: products } = useFirestore<Product>('products');
@@ -142,9 +144,17 @@ function DashboardView({
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
             Smart Home <span className="text-emerald-600">ERP</span>
           </h1>
-          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
-            Olá, {user.displayName?.split(' ')[0]} • v1.0
-          </p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
+              Olá, {user.displayName?.split(' ')[0]} • v1.0
+            </p>
+            {geminiStatus && (
+              <span className={cn(
+                "w-1.5 h-1.5 rounded-full animate-pulse",
+                geminiStatus.success ? "bg-emerald-500" : "bg-red-500"
+              )} title={geminiStatus.message} />
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button 
@@ -336,6 +346,8 @@ function DashboardView({
   );
 }
 
+import { testGeminiConnection } from './lib/gemini';
+
 // --- Main App ---
 
 export default function App() {
@@ -343,11 +355,20 @@ export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activeTab, setActiveTab] = useState<'dash' | 'market' | 'finance' | 'ai' | 'meals'>('dash');
   const [loading, setLoading] = useState(true);
+  const [geminiStatus, setGeminiStatus] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     return onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
+        // Run Gemini test
+        const status = await testGeminiConnection();
+        setGeminiStatus(status);
+        if (!status.success) {
+          console.error("Gemini Failure:", status.message);
+        } else {
+          console.log("Gemini Success:", status.message);
+        }
         const userRef = doc(db, 'users', u.uid);
         const userSnap = await getDoc(userRef);
         
@@ -447,6 +468,7 @@ export default function App() {
                 user={profile!} 
                 onLogout={logout} 
                 onNavigate={setActiveTab} 
+                geminiStatus={geminiStatus}
               />
             </motion.div>
           )}
