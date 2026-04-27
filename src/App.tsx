@@ -131,152 +131,185 @@ function DashboardView({
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(publicUrl)}`;
 
   return (
-    <div className="space-y-6">
-      <header className="flex justify-between items-center bg-white border-b border-slate-200 -mx-6 -mt-6 px-8 py-6 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
-            Smart Home <span className="text-emerald-600">ERP</span>
-          </h1>
-          <div className="flex items-center gap-2 mt-0.5">
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
-              Olá, {user?.displayName?.split(' ')[0] || 'Usuário'} • v1.0
-            </p>
-            {geminiStatus && (
-              <span className={cn(
-                "w-1.5 h-1.5 rounded-full animate-pulse",
-                geminiStatus.success ? "bg-emerald-500" : "bg-red-500"
-              )} title={geminiStatus.message} />
-            )}
-          </div>
+    <div className="space-y-8">
+      {/* Dynamic Header for Dashboard */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="space-y-1">
+          <p className="text-[11px] font-black text-emerald-600 uppercase tracking-[0.2em]">Operational Pulse</p>
+          <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase leading-none">
+            Visão Geral <span className="text-slate-400">/ Resumo</span>
+          </h2>
         </div>
-        <div className="flex items-center gap-2">
+        
+        <div className="flex items-center gap-3">
           <button 
             onClick={() => setShowShare(true)}
-            className="p-2 text-slate-300 hover:text-emerald-500 transition-colors cursor-pointer"
-            title="Acessar no Celular"
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-emerald-500 hover:text-emerald-600 transition-all cursor-pointer shadow-sm group"
           >
-            <Smartphone size={20} />
+            <Smartphone size={14} className="group-hover:scale-110 transition-transform" />
+            Sincronizar Celular
           </button>
-          {products.length === 0 && (
-            <button 
-              onClick={handleSeed}
-              disabled={seeding}
-              className="px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-emerald-200 transition-colors flex items-center gap-1.5"
-            >
-              <Sparkles size={12} />
-              {seeding ? '...' : 'Importar'}
-            </button>
-          )}
           <button 
             onClick={onLogout}
-            className="p-2 text-slate-300 hover:text-red-500 transition-colors cursor-pointer"
+            className="p-2.5 bg-slate-100 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer lg:hidden"
             title="Sair"
           >
-            <LogOut size={20} />
+            <LogOut size={18} />
           </button>
-          <div className="text-right hidden sm:block">
-            <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Status</p>
-            <p className="text-xs text-emerald-500 font-semibold uppercase">Sincronizado</p>
-          </div>
-          <div className="w-12 h-12 rounded-full bg-slate-200 border-2 border-emerald-500 overflow-hidden shadow-sm">
-             <div className="w-full h-full bg-gradient-to-br from-slate-400 to-slate-600" />
-          </div>
         </div>
-      </header>
+      </div>
 
-      <Card>
-        <div className="flex justify-between items-start mb-4">
-          <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full uppercase tracking-wider">Orçamento Mensal</span>
-        </div>
-        <div className="mb-6">
-          <p className="text-4xl font-black text-slate-900 tracking-tighter">R$ {budget.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-          <p className="text-slate-400 text-sm font-medium">Saldo total disponível em conta</p>
-        </div>
-        <div className="space-y-3">
-          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: `${Math.min(consumedPercent, 100)}%` }}
-              className={cn(
-                "h-full rounded-full transition-all duration-500",
-                consumedPercent > 90 ? "bg-red-500" : consumedPercent > 70 ? "bg-amber-500" : "bg-emerald-500"
-              )}
-            />
-          </div>
-          <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
-            <span className="text-slate-500">Consumido: R$ {totalMonthlyImpact.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-            <span className="text-emerald-600">Livre: R$ {(budget - totalMonthlyImpact).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-          </div>
-        </div>
-      </Card>
-
-      {lowStockItems.length > 0 && (
-        <div className="bg-red-50 border border-red-100 rounded-[24px] p-4 flex gap-4 items-center">
-          <div className="p-2 bg-red-100 text-red-600 rounded-xl">
-            <AlertCircle size={20} />
-          </div>
-          <div>
-            <h4 className="text-[10px] font-bold text-red-800 uppercase tracking-widest">Alerta de Reposição</h4>
-            <p className="text-sm font-bold text-red-600">{lowStockItems.length} itens abaixo do estoque mínimo.</p>
-          </div>
-        </div>
-      )}
-
-      <Card title="Fluxo de Gastos" subtitle="Próximos Vencimentos">
-        <div className="space-y-4">
-          {finances.length === 0 ? (
-            <p className="text-xs text-slate-400 italic">Sem registros financeiros.</p>
-          ) : (
-            finances.slice(0, 3).map((f) => (
-              <div key={f.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-white font-bold text-xs uppercase">
-                    {f.type[0]}
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-900">{f.description}</p>
-                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Venc: {new Date(f.dueDate).toLocaleDateString()}</p>
-                  </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Main Budget Card - Spans 2 columns on lg */}
+        <Card className="lg:col-span-2 relative overflow-hidden group border-none bg-emerald-600 text-white min-h-[220px]">
+          <div className="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
+          
+          <div className="relative z-10 h-full flex flex-col">
+            <div className="flex justify-between items-start mb-auto">
+              <span className="px-3 py-1 bg-white/20 text-white text-[10px] font-black rounded-full uppercase tracking-wider backdrop-blur-md">Status Financeiro</span>
+              {geminiStatus && (
+                <div className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full backdrop-blur-md border border-white/10">
+                   <div className={cn("w-1.5 h-1.5 rounded-full", geminiStatus.success ? "bg-white animate-pulse" : "bg-red-300")} />
+                   <span className="text-[9px] font-bold uppercase tracking-widest">AI Engine {geminiStatus.success ? "Ready" : "Offline"}</span>
                 </div>
-                <p className="font-bold text-slate-900 text-sm italic">
-                  R$ {(f.type === FinanceType.PARCELA ? f.value / (f.totalInstallments || 1) : f.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-            ))
-          )}
-        </div>
-      </Card>
+              )}
+            </div>
+            
+            <div className="mb-8 mt-6">
+              <p className="text-[11px] font-bold text-emerald-100 uppercase tracking-widest mb-1 opacity-80">Orçamento Mensal Disponível</p>
+              <p className="text-5xl font-black text-white tracking-tighter">R$ {budget.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+            </div>
 
-      <Card title="Inventário" subtitle="Itens recentes">
-        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-          {products.slice(-5).map((p) => (
-            <div key={p.id} className="flex-shrink-0 bg-slate-50 border border-slate-100 rounded-2xl p-4 min-w-[120px]">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 tracking-widest">{p.category}</p>
-              <p className="text-sm font-bold text-slate-900 truncate">{p.name}</p>
-              <p className="text-lg font-black text-emerald-600 mt-1">{p.quantity}{p.unit}</p>
-              <div className="w-full bg-slate-200 h-1 mt-2 rounded-full">
-                <div className="bg-emerald-500 h-full w-[70%] rounded-full opacity-50" />
+            <div className="space-y-3 mt-auto">
+              <div className="w-full bg-white/20 h-2.5 rounded-full overflow-hidden backdrop-blur-sm">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(consumedPercent, 100)}%` }}
+                  className="h-full rounded-full bg-white transition-all duration-700 ease-out"
+                />
+              </div>
+              <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.1em]">
+                <span className="text-white">Consumido: R$ {totalMonthlyImpact.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                <span className="text-emerald-100 italic">Restante: R$ {(budget - totalMonthlyImpact).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
-          ))}
-          {products.length === 0 && <p className="text-xs text-slate-400 italic w-full text-center py-4">Nenhum produto cadastrado.</p>}
-        </div>
-      </Card>
+          </div>
+        </Card>
 
-      <div className="bg-slate-900 text-white p-6 rounded-[24px] shadow-lg relative overflow-hidden">
-        <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/20 rounded-full blur-2xl" />
-        <h3 className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-4">Chat IA Insight</h3>
-        <div className="space-y-4">
-          <p className="text-xs text-slate-300 leading-relaxed font-medium">
-            "{lowStockItems.length > 0 ? `Detectei que faltam ${lowStockItems.length} itens essenciais. ` : ''} 
-            Use o Vision AI para escanear tickets de mercado e otimizar seu estoque automaticamente."
-          </p>
+        {/* AI Insight Card */}
+        <div className="bg-slate-900 text-white p-8 rounded-[32px] shadow-2xl relative overflow-hidden flex flex-col justify-between border-t border-slate-800 min-h-[220px]">
+          <div className="absolute -right-8 -top-8 w-40 h-40 bg-emerald-500/10 rounded-full blur-[60px]" />
+          
+          <div>
+            <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20">
+              <Sparkles size={20} className="text-white" />
+            </div>
+            <h3 className="text-[11px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-4">Neural Analytics</h3>
+            <p className="text-sm text-slate-300 leading-relaxed font-medium italic">
+              "{lowStockItems.length > 0 ? `Identifiquei uma variação crítica no seu estoque: ${lowStockItems.length} itens essenciais precisam ser repostos.` : 'Seu ecossistema está equilibrado. Recomendo escanear novos recibos para manter os dados atualizados.'}"
+            </p>
+          </div>
+
           <button 
             onClick={() => onNavigate('ai')}
-            className="w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition-colors uppercase tracking-widest"
+            className="w-full mt-8 py-4 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-[10px] font-black rounded-2xl transition-all uppercase tracking-[0.2em] shadow-lg shadow-emerald-500/10 cursor-pointer"
           >
-            Abrir Scanner
+            Acessar Scanner AI
           </button>
+        </div>
+
+        {/* Secondary Cards Grid */}
+        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Card title="Financeiro" subtitle="Próximos Vencimentos" className="flex flex-col">
+            <div className="space-y-3 flex-1">
+              {finances.length === 0 ? (
+                <div className="py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Nenhum Registro</p>
+                </div>
+              ) : (
+                finances.slice(0, 3).map((f) => (
+                  <div key={f.id} className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-white hover:shadow-md hover:border-emerald-100 transition-all rounded-2xl border border-slate-50 group cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white font-black text-[9px] transition-transform group-hover:scale-110">
+                        {f.type[0].toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-900 truncate">{f.description}</p>
+                        <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest mt-0.5">
+                          {new Date(f.dueDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="font-black text-slate-900 text-xs italic shrink-0">
+                      R$ {(f.type === FinanceType.PARCELA ? f.value / (f.totalInstallments || 1) : f.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+            <button 
+              onClick={() => onNavigate('finance')}
+              className="w-full mt-4 py-3 bg-slate-50 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer"
+            >
+              Ver Todas Contas
+            </button>
+          </Card>
+
+          <Card title="Estoque Crítico" subtitle="Reposição Imediata" className="flex flex-col">
+            <div className="space-y-3 flex-1">
+              {lowStockItems.length === 0 ? (
+                <div className="py-8 text-center bg-emerald-50 rounded-2xl border border-dashed border-emerald-100">
+                   <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Estoque OK</p>
+                </div>
+              ) : (
+                lowStockItems.slice(0, 3).map((p) => (
+                  <div key={p.id} className="flex items-center justify-between p-3.5 bg-red-50/50 rounded-2xl border border-red-50 group">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
+                        <AlertCircle size={14} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-900 truncate">{p.name}</p>
+                        <p className="text-[9px] text-red-500 uppercase font-black tracking-widest mt-0.5">
+                          Abaixo do mínimo
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                       <p className="text-xs font-black text-red-600">{p.quantity}{p.unit}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <button 
+              onClick={() => onNavigate('market')}
+              className="w-full mt-4 py-3 bg-slate-50 text-slate-500 hover:bg-red-50 hover:text-red-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer"
+            >
+              Gerenciar Despensa
+            </button>
+          </Card>
+
+          <Card title="Inventário" subtitle="Atividade Recente" className="flex flex-col">
+            <div className="space-y-2 flex-1">
+              {products.slice(-5).reverse().map((p) => (
+                <div key={p.id} className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-50 rounded-xl">
+                  <div className="min-w-0">
+                    <p className="text-[8px] uppercase font-bold text-slate-400 tracking-tighter">{p.category}</p>
+                    <p className="text-[11px] font-bold text-slate-900 truncate">{p.name}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[11px] font-black text-emerald-600">{p.quantity}{p.unit}</span>
+                  </div>
+                </div>
+              ))}
+              {products.length === 0 && <p className="text-xs text-slate-400 italic text-center py-8">Nenhum produto.</p>}
+            </div>
+            <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Itens</p>
+               <p className="text-sm font-black text-slate-900">{products.length}</p>
+            </div>
+          </Card>
         </div>
       </div>
 
@@ -292,7 +325,7 @@ function DashboardView({
             >
               <button 
                 onClick={() => setShowShare(false)}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -303,7 +336,7 @@ function DashboardView({
                 </div>
                 
                 <div>
-                  <h3 className="text-lg font-black text-slate-900 uppercase tracking-tighter">Acesso iPhone</h3>
+                  <h3 className="text-lg font-black text-slate-900 uppercase tracking-tighter">Acesso Mobile</h3>
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Escaneie para celular</p>
                 </div>
 
@@ -321,14 +354,11 @@ function DashboardView({
                       navigator.clipboard.writeText(publicUrl);
                       alert('Link copiado!');
                     }}
-                    className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all"
+                    className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
                   >
                     <Copy size={14} />
                     Copiar Link
                   </button>
-                  <p className="text-[10px] text-slate-400 font-bold text-center leading-relaxed">
-                    No Safari do iPhone, toque em "Compartilhar" e "Adicionar à Tela de Início" para remover barras do navegador.
-                  </p>
                 </div>
               </div>
             </motion.div>
@@ -447,88 +477,162 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen bg-slate-50 flex flex-col max-w-md mx-auto relative overflow-hidden border-x border-slate-200 shadow-[0_0_50px_rgba(0,0,0,0.1)]">
-      <main className="flex-1 overflow-y-auto p-6 pb-28">
-        <AnimatePresence mode="wait">
-          {activeTab === 'dash' && (
-            <motion.div 
-              key="dash"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <DashboardView 
-                user={profile!} 
-                onLogout={logout} 
-                onNavigate={setActiveTab} 
-                geminiStatus={geminiStatus}
-              />
-            </motion.div>
-          )}
+    <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row relative overflow-hidden font-sans">
+      {/* Sidebar - Desktop */}
+      <nav className="hidden lg:flex flex-col w-64 bg-white border-r border-slate-200 p-8 fixed h-full z-50">
+        <div className="mb-12">
+          <h1 className="text-2xl font-black text-slate-800 tracking-tighter uppercase leading-none">
+            Smart Home<br/><span className="text-emerald-600">ERP</span>
+          </h1>
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2 px-1">Master Blueprint v1.0</p>
+        </div>
 
-          {activeTab === 'market' && (
-            <motion.div 
-              key="market"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <PantryView />
-            </motion.div>
-          )}
+        <div className="flex-1 space-y-2">
+          <SidebarNavItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'dash'} onClick={() => setActiveTab('dash')} />
+          <SidebarNavItem icon={ShoppingBag} label="Estoque / Feira" active={activeTab === 'market'} onClick={() => setActiveTab('market')} />
+          <SidebarNavItem icon={ChefHat} label="Planejamento" active={activeTab === 'meals'} onClick={() => setActiveTab('meals')} />
+          <SidebarNavItem icon={CreditCard} label="Financeiro" active={activeTab === 'finance'} onClick={() => setActiveTab('finance')} />
+          <SidebarNavItem icon={Camera} label="Vision AI" active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} />
+        </div>
 
-          {activeTab === 'meals' && (
-            <motion.div 
-              key="meals"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <MealView />
-            </motion.div>
-          )}
+        <div className="mt-auto pt-8 border-t border-slate-100">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-full bg-emerald-500 border border-emerald-400 overflow-hidden shadow-sm flex-shrink-0">
+               <div className="w-full h-full bg-gradient-to-br from-slate-400 to-slate-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-black text-slate-900 uppercase truncate">{profile.displayName}</p>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter truncate">Premium User</p>
+            </div>
+          </div>
+          <button 
+            onClick={logout}
+            className="w-full py-3 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <LogOut size={14} />
+            Logout
+          </button>
+        </div>
+      </nav>
 
-          {activeTab === 'finance' && (
-            <motion.div 
-              key="finance"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <FinanceView />
-            </motion.div>
-          )}
+      {/* Main Content Area */}
+      <main className="flex-1 lg:ml-64 relative min-h-screen">
+        <div className="max-w-6xl mx-auto p-6 md:p-8 lg:p-12 pb-32 lg:pb-12">
+          <AnimatePresence mode="wait">
+            {activeTab === 'dash' && (
+              <motion.div 
+                key="dash"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <DashboardView 
+                  user={profile!} 
+                  onLogout={logout} 
+                  onNavigate={setActiveTab} 
+                  geminiStatus={geminiStatus}
+                />
+              </motion.div>
+            )}
 
-          {activeTab === 'ai' && (
-            <motion.div 
-              key="ai"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <VisionView />
-            </motion.div>
-          )}
-        </AnimatePresence>
+            {activeTab === 'market' && (
+              <motion.div 
+                key="market"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <PantryView />
+              </motion.div>
+            )}
+
+            {activeTab === 'meals' && (
+              <motion.div 
+                key="meals"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <MealView />
+              </motion.div>
+            )}
+
+            {activeTab === 'finance' && (
+              <motion.div 
+                key="finance"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <FinanceView />
+              </motion.div>
+            )}
+
+            {activeTab === 'ai' && (
+              <motion.div 
+                key="ai"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <VisionView />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-2xl border-t border-slate-200 px-4 py-5 flex justify-between items-center max-w-md mx-auto z-50 rounded-t-[32px] h-24">
-        <NavItem icon={LayoutDashboard} label="Dash" active={activeTab === 'dash'} onClick={() => setActiveTab('dash')} />
-        <NavItem icon={ShoppingBag} label="Feira" active={activeTab === 'market'} onClick={() => setActiveTab('market')} />
-        <div className="relative -top-12">
+      {/* Bottom Nav - Mobile ONLY */}
+      <nav className="fixed bottom-0 left-0 right-0 lg:hidden bg-white/80 backdrop-blur-2xl border-t border-slate-200 px-2 py-5 flex justify-between items-center z-50 h-24 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+        <NavItem icon={LayoutDashboard} label="Resumo" active={activeTab === 'dash'} onClick={() => setActiveTab('dash')} />
+        <NavItem icon={ShoppingBag} label="Estoque" active={activeTab === 'market'} onClick={() => setActiveTab('market')} />
+        <div className="relative -top-10">
           <button 
             onClick={() => setActiveTab('ai')}
             className={cn(
-              "w-16 h-16 rounded-[24px] flex items-center justify-center text-white shadow-2xl transition-all",
-              activeTab === 'ai' ? "bg-slate-900 scale-110" : "bg-emerald-600 shadow-emerald-200 hover:scale-110 active:scale-95"
+              "w-16 h-16 rounded-[24px] flex items-center justify-center text-white shadow-2xl transition-all shadow-emerald-400 rotate-3",
+              activeTab === 'ai' ? "bg-slate-900 rotate-0" : "bg-emerald-600 hover:scale-110 active:scale-95"
             )}
           >
             <Camera size={28} />
           </button>
         </div>
-        <NavItem icon={UtensilsCrossed} label="Dieta" active={activeTab === 'meals'} onClick={() => setActiveTab('meals')} />
+        <NavItem icon={ChefHat} label="Dieta" active={activeTab === 'meals'} onClick={() => setActiveTab('meals')} />
         <NavItem icon={CreditCard} label="Contas" active={activeTab === 'finance'} onClick={() => setActiveTab('finance')} />
       </nav>
     </div>
+  );
+}
+
+function SidebarNavItem({ 
+  icon: Icon, 
+  label, 
+  active, 
+  onClick 
+}: { 
+  icon: any, 
+  label: string, 
+  active: boolean, 
+  onClick: () => void 
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all font-bold text-[11px] uppercase tracking-widest cursor-pointer",
+        active 
+          ? "bg-emerald-50 text-emerald-700 shadow-sm shadow-emerald-100" 
+          : "text-slate-400 hover:text-slate-700 hover:bg-slate-50"
+      )}
+    >
+      <Icon size={18} />
+      {label}
+      {active && <div className="ml-auto w-1.5 h-1.5 bg-emerald-600 rounded-full shadow-lg shadow-emerald-300" />}
+    </button>
   );
 }

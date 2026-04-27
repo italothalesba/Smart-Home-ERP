@@ -447,256 +447,243 @@ export function MealView() {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="text-center space-y-2 mb-8">
-        <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Planejamento Diário</h2>
-        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Nutrição & Logística</p>
-      </div>
-
-      <div className="flex justify-between items-center px-1">
-        <div className="flex items-center gap-2">
-          <Calendar size={16} className="text-emerald-600" />
-          <h3 className="font-bold text-slate-800 uppercase tracking-widest text-[10px]">Cardápio da Semana</h3>
+    <div className="space-y-8 max-w-6xl mx-auto px-1 md:px-0">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="space-y-1">
+          <p className="text-[11px] font-black text-emerald-600 uppercase tracking-[0.2em]">Gastronomy Planner</p>
+          <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase leading-none">
+            Plano <span className="text-slate-400">Nutricional</span>
+          </h2>
         </div>
-        <div className="flex gap-2">
+        
+        <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
           <button 
             onClick={loadSuggestedDiet}
-            className="px-4 h-10 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all"
+            className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer mr-1"
           >
-            Sugerida
+            Sugestão IA
           </button>
           <button 
             onClick={() => setIsAdding(!isAdding)}
             className={cn(
-              "w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all shadow-lg",
-              isAdding ? "bg-slate-800" : "bg-emerald-600 shadow-emerald-100"
+              "flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer",
+              isAdding ? "bg-slate-900 text-white" : "bg-emerald-600 text-white shadow-lg shadow-emerald-100 hover:bg-emerald-700"
             )}
           >
-            <Plus size={20} className={cn("transition-transform", isAdding && "rotate-45")} />
+            <Plus size={14} className={cn("transition-transform", isAdding && "rotate-45")} />
+            {isAdding ? "Fechar" : "Nova Refeição"}
           </button>
         </div>
       </div>
 
-      {isAdding && (
-        <motion.form 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          onSubmit={handleAddMeal}
-          className="bg-white rounded-[24px] p-6 border border-slate-200 shadow-sm space-y-4"
-        >
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">Dia</label>
-              <select
-                value={form.day}
-                onChange={e => setForm({...form, day: e.target.value})}
-                className="w-full px-5 py-3 border border-slate-100 bg-slate-50 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer"
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Column: Calendar */}
+        <div className="lg:col-span-7 space-y-8">
+          <AnimatePresence>
+            {isAdding && (
+              <motion.form 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                onSubmit={handleAddMeal}
+                className="bg-white rounded-[32px] p-8 border border-slate-200 space-y-5 shadow-xl overflow-hidden"
               >
-                {WEEK_DAYS.map(day => <option key={day} value={day}>{day}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">Pessoas</label>
-              <input 
-                type="number"
-                min="1"
-                required
-                value={form.peopleCount}
-                onChange={e => setForm({...form, peopleCount: parseInt(e.target.value) || 1})}
-                className="w-full px-5 py-3 border border-slate-100 bg-slate-50 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
-              />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">Tipo de Refeição</label>
-            <select
-              value={form.type}
-              onChange={e => setForm({...form, type: e.target.value as MealType})}
-              className="w-full px-5 py-3 border border-slate-100 bg-slate-50 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer"
-            >
-              {Object.entries(MEAL_TYPE_LABELS).map(([val, label]) => (
-                <option key={val} value={val}>{label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">Nome do Prato</label>
-            <input 
-              required
-              placeholder="Ex: Lasanha de Berinjela"
-              value={form.title}
-              onChange={e => setForm({...form, title: e.target.value})}
-              className="w-full px-5 py-3 border border-slate-100 bg-slate-50 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">Ingredientes (Sugerido)</label>
-            <input 
-              placeholder="Separe por vírgula"
-              value={form.ingredients}
-              onChange={e => setForm({...form, ingredients: e.target.value})}
-              className="w-full px-5 py-3 border border-slate-100 bg-slate-50 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">Detalhes (Pessoas / Qtdas)</label>
-            <textarea 
-              placeholder="Ex: 3 pessoas - 2 porções individuais"
-              value={form.instructions}
-              onChange={e => setForm({...form, instructions: e.target.value})}
-              className="w-full px-5 py-3 border border-slate-100 bg-slate-50 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition-all h-20 resize-none"
-            />
-          </div>
-          <button type="submit" className="w-full bg-slate-900 text-white font-black py-4 rounded-xl shadow-lg uppercase tracking-widest text-xs hover:bg-slate-800 transition-colors">
-            Salvar Planejamento
-          </button>
-        </motion.form>
-      )}
-
-      <div className="space-y-8">
-        {WEEK_DAYS.map(day => {
-          const dayMeals = meals
-            .filter(m => m.day === day)
-            .sort((a, b) => (MEAL_TYPE_ORDER[a.type] || 0) - (MEAL_TYPE_ORDER[b.type] || 0));
-
-          if (dayMeals.length === 0) return null;
-
-          return (
-            <div key={day} className="space-y-3">
-              <div className="flex items-center gap-3 px-2">
-                <div className="h-px bg-slate-100 flex-1" />
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{day}</span>
-                <div className="h-px bg-slate-100 flex-1" />
-              </div>
-              <div className="space-y-3">
-                {dayMeals.map(meal => (
-                  <div 
-                    key={meal.id} 
-                    className="bg-white rounded-[24px] p-4 border border-slate-100 shadow-sm flex items-start justify-between gap-4 transition-all group"
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Dia da Semana</label>
+                    <select
+                      value={form.day}
+                      onChange={e => setForm({...form, day: e.target.value})}
+                      className="w-full px-5 py-3.5 border border-slate-100 bg-slate-50 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer appearance-none"
+                    >
+                      {WEEK_DAYS.map(day => <option key={day} value={day}>{day}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Qtd Pessoas</label>
+                    <input 
+                      type="number"
+                      min="1"
+                      required
+                      value={form.peopleCount}
+                      onChange={e => setForm({...form, peopleCount: parseInt(e.target.value) || 1})}
+                      className="w-full px-5 py-3.5 border border-slate-100 bg-slate-50 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Tipo de Refeição</label>
+                  <select
+                    value={form.type}
+                    onChange={e => setForm({...form, type: e.target.value as MealType})}
+                    className="w-full px-5 py-3.5 border border-slate-100 bg-slate-50 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer appearance-none"
                   >
-                    <div className="flex gap-4 flex-1">
-                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                        <ChefHat size={24} />
-                      </div>
-                      <div className="space-y-1 flex-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-full">
-                            {MEAL_TYPE_LABELS[meal.type]}
-                          </span>
-                          <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">Pessoas:</span>
-                            <input 
-                              type="number"
-                              min="1"
-                              defaultValue={meal.peopleCount || 1}
-                              onBlur={(e) => {
-                                const val = parseInt(e.target.value);
-                                if (!isNaN(val) && val !== meal.peopleCount) {
-                                  update(meal.id, { peopleCount: val });
-                                }
-                              }}
-                              className="text-[10px] font-black text-slate-900 bg-transparent w-8 outline-none text-center"
-                            />
+                    {Object.entries(MEAL_TYPE_LABELS).map(([val, label]) => (
+                      <option key={val} value={val}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Título do Prato</label>
+                  <input 
+                    required
+                    placeholder="Ex: Lasanha de Berinjela"
+                    value={form.title}
+                    onChange={e => setForm({...form, title: e.target.value})}
+                    className="w-full px-5 py-3.5 border border-slate-100 bg-slate-50 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-slate-300"
+                  />
+                </div>
+
+                <button type="submit" className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl shadow-lg uppercase tracking-[0.2em] text-[10px] hover:bg-slate-800 transition-all active:scale-95 cursor-pointer">
+                  Confirmar Planejamento
+                </button>
+              </motion.form>
+            )}
+          </AnimatePresence>
+
+          <div className="space-y-10">
+            {WEEK_DAYS.map(day => {
+              const dayMeals = meals
+                .filter(m => m.day === day)
+                .sort((a, b) => (MEAL_TYPE_ORDER[a.type] || 0) - (MEAL_TYPE_ORDER[b.type] || 0));
+
+              if (dayMeals.length === 0) return null;
+
+              return (
+                <div key={day} className="space-y-4">
+                  <div className="flex items-center gap-4 px-2">
+                    <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] shrink-0">{day}</h3>
+                    <div className="h-px bg-slate-200 flex-1" />
+                  </div>
+                  <div className="grid gap-4">
+                    {dayMeals.map(meal => (
+                      <motion.div 
+                        layout
+                        key={meal.id} 
+                        className="bg-white rounded-[28px] p-5 border border-slate-100 shadow-sm flex items-center justify-between gap-4 transition-all hover:border-emerald-200 hover:shadow-md group"
+                      >
+                        <div className="flex gap-4 items-center min-w-0">
+                          <div className="w-14 h-14 rounded-2xl bg-slate-50 text-slate-800 flex items-center justify-center shrink-0 shadow-sm border border-white group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                            <ChefHat size={24} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                               <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                                 {MEAL_TYPE_LABELS[meal.type]}
+                               </span>
+                               <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded-md">
+                                 Pessoas: {meal.peopleCount || 1}
+                               </span>
+                            </div>
+                            <h4 className="text-sm font-black text-slate-900 truncate">{meal.title}</h4>
+                            <div className="flex items-center gap-3 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                               <button 
+                                 onClick={() => setSelectedMeal(meal)}
+                                 className="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-1.5 hover:underline cursor-pointer"
+                               >
+                                 <Calculator size={10} /> Calculadora Técnica
+                               </button>
+                               <span className="text-slate-200">/</span>
+                               <button 
+                                 onClick={() => remove(meal.id)}
+                                 className="text-[9px] font-black text-red-400 uppercase flex items-center gap-1.5 hover:text-red-600 cursor-pointer"
+                               >
+                                 Excluir
+                               </button>
+                            </div>
                           </div>
                         </div>
-                        <h4 className="text-sm font-bold text-slate-900">{meal.title}</h4>
-                        <button 
-                          onClick={() => setSelectedMeal(meal)}
-                          className="flex items-center gap-2 hover:bg-emerald-50 px-2 py-1 -ml-2 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Calculator size={10} className="text-emerald-500" />
-                          <span className="text-[10px] font-bold text-emerald-600 uppercase">Calculadora de Dieta</span>
-                        </button>
-                        {meal.instructions && (
-                          <p className="text-[10px] font-bold text-slate-500 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
-                            {meal.instructions}
-                          </p>
-                        )}
-                        {meal.ingredients && meal.ingredients.length > 0 && (
-                          <p className="text-[10px] text-slate-400 font-medium italic">
-                            Ingredientes: {meal.ingredients.join(', ')}
-                          </p>
-                        )}
-                      </div>
+                        
+                        <div className="shrink-0 hidden md:block">
+                           <ArrowRight size={16} className="text-slate-200 group-hover:text-emerald-500 transition-colors" />
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {meals.length === 0 && !isAdding && (
+            <div className="py-24 text-center space-y-4 bg-white rounded-[40px] border border-slate-100 border-dashed">
+              <ChefHat size={48} className="mx-auto text-slate-100" />
+              <p className="text-slate-400 text-[11px] font-black uppercase tracking-widest leading-loose">
+                Organismo Operacional Vazio<br/>Inicie o Planejamento Semanal
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: AI Shopping & Action Cards */}
+        <div className="lg:col-span-5 space-y-8">
+           <div className="bg-slate-900 rounded-[40px] p-10 relative overflow-hidden shadow-2xl group min-h-[400px] flex flex-col justify-between">
+              <div className="absolute top-0 right-0 p-10 text-emerald-500/10 group-hover:scale-110 transition-transform duration-1000">
+                <Sparkles size={200} strokeWidth={0.5} />
+              </div>
+              
+              <div className="relative z-10 space-y-8">
+                <div className="space-y-2">
+                  <div className="w-12 h-1 bg-emerald-500 rounded-full mb-4" />
+                  <h3 className="text-white text-3xl font-black tracking-tighter uppercase leading-tight">Shopping<br/>Intelligence</h3>
+                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">IA Generated Logistics</p>
+                </div>
+
+                {shoppingList.length > 0 ? (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 space-y-6 border border-white/10"
+                  >
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest italic">Inventory Requiriments</h4>
+                      <button onClick={() => setShoppingList([])} className="p-2 bg-white/10 hover:bg-red-500/20 text-white transition-colors rounded-xl cursor-pointer">
+                        <Trash2 size={14} />
+                      </button>
                     </div>
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-4 custom-scrollbar">
+                      {shoppingList.map((item, i) => (
+                        <div key={i} className="flex items-center gap-3 text-xs text-slate-100 font-bold group/item py-1">
+                          <div className="w-2 h-2 rounded-full border-2 border-emerald-500 group-hover/item:bg-emerald-500 transition-colors" />
+                          <span className="truncate tracking-tight">{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                ) : (
+                  <div className="space-y-8">
+                    <p className="text-slate-400 text-sm leading-relaxed font-medium">
+                      O sistema analisa cada ingrediente, tempo de preparo e contagem de pessoas para prever a lista técnica da feira.
+                    </p>
+
                     <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        remove(meal.id);
-                      }} 
-                      className="p-2 text-slate-200 hover:text-red-500 transition-colors shrink-0"
+                      onClick={handleGenerateList}
+                      disabled={isGenerating || meals.length === 0}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black py-5 rounded-2xl transition-all shadow-xl shadow-emerald-950/40 flex items-center justify-center gap-3 uppercase tracking-widest text-xs active:scale-95 cursor-pointer"
                     >
-                      <Trash2 size={16} />
+                      {isGenerating ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
+                      {isGenerating ? 'Calculando Insumos...' : 'Gerar Lista de Compras'}
                     </button>
                   </div>
-                ))}
+                )}
               </div>
-            </div>
-          );
-        })}
-        {meals.length === 0 && !isAdding && (
-          <div className="py-20 text-center space-y-4">
-            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-300">
-              <ChefHat size={32} />
-            </div>
-            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Nenhuma refeição planejada</p>
-          </div>
-        )}
-      </div>
 
-      <div className="pt-8 pb-12">
-        <div className="bg-slate-900 rounded-[32px] p-8 relative overflow-hidden shadow-2xl">
-          <div className="absolute top-0 right-0 p-8 text-emerald-500/20">
-            <Sparkles size={120} strokeWidth={1} />
-          </div>
-          
-          <div className="relative z-10 space-y-6">
-            <div className="space-y-2">
-              <h3 className="text-white text-xl font-black tracking-tighter uppercase">Assistant Shopping List</h3>
-              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">IA Powered Prediction</p>
-            </div>
+              <div className="relative z-10 flex items-center gap-3 text-[9px] font-black text-slate-500 uppercase tracking-widest border-t border-white/5 pt-8 mt-8">
+                <Clock size={14} />
+                <span>Próximo ciclo de atualização em 24h</span>
+              </div>
+           </div>
 
-            <p className="text-slate-400 text-sm leading-relaxed font-medium">
-              Gere automaticamente a lista técnica de compras baseada nos pratos planejados acima.
-            </p>
-
-            {shoppingList.length > 0 ? (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white/10 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/10"
-              >
-                <div className="flex justify-between items-center border-b border-white/5 pb-3">
-                  <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Itens Necessários</h4>
-                  <button onClick={() => setShoppingList([])} className="text-white/40 hover:text-white transition-colors">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                  {shoppingList.map((item, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs text-slate-100">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      <span className="truncate">{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            ) : (
-              <button 
-                onClick={handleGenerateList}
-                disabled={isGenerating || meals.length === 0}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-emerald-950/20 flex items-center justify-center gap-3 uppercase tracking-widest text-xs"
-              >
-                {isGenerating ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
-                {isGenerating ? 'Analisando Dieta...' : 'Gerar Lista de Compras'}
-              </button>
-            )}
-            
-            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-              <Clock size={12} />
-              <span>Sincronização em tempo real</span>
-            </div>
-          </div>
+           <div className="bg-amber-600 rounded-[32px] p-8 text-white shadow-xl relative overflow-hidden">
+              <ShoppingBag className="absolute -right-4 -bottom-4 text-white/10" size={100} />
+              <h4 className="text-[11px] font-black uppercase tracking-widest mb-4 italic text-amber-200">Dica de Logística</h4>
+              <p className="text-sm font-bold leading-relaxed">
+                Tente agrupar preparos similares no mesmo dia para economizar gás e tempo de higienização de vegetais. O sistema prioriza insumos frescos para os primeiros dias da semana.
+              </p>
+           </div>
         </div>
       </div>
 
@@ -705,7 +692,7 @@ export function MealView() {
           <MealDetailsModal 
             meal={selectedMeal} 
             onClose={() => setSelectedMeal(null)} 
-          />
+           />
         )}
       </AnimatePresence>
     </div>
