@@ -98,7 +98,7 @@ export function VisionView() {
                    <button 
                      type="submit"
                      disabled={!qrUrl || loading}
-                     className="absolute right-2 top-2 bottom-2 bg-emerald-600 text-white px-4 rounded-xl flex items-center justify-center disabled:opacity-50 transition-all hover:bg-emerald-700 cursor-pointer shadow-sm"
+                     className="absolute right-2 top-2 bottom-2 bg-emerald-600 text-white px-4 rounded-xl flex items-center justify-center disabled:opacity-50 transition-all cursor-pointer shadow-sm"
                    >
                      {loading ? <Loader2 size={18} className="animate-spin" /> : <Scan size={18} />}
                    </button>
@@ -116,7 +116,7 @@ export function VisionView() {
               onClick={() => fileInputRef.current?.click()}
               className={cn(
                 "border-2 border-dashed rounded-[32px] aspect-sqaure min-h-[300px] flex flex-col items-center justify-center p-10 cursor-pointer relative overflow-hidden group",
-                image ? "border-emerald-500 bg-emerald-50/10" : "border-slate-100 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300"
+                image ? "border-emerald-500 bg-emerald-50/10" : "border-slate-100 bg-slate-50/50"
               )}
             >
               <input 
@@ -148,7 +148,7 @@ export function VisionView() {
             {image && !loading && items.length === 0 && (
               <button 
                 onClick={processImage}
-                className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl flex items-center justify-center gap-3 uppercase tracking-[0.2em] text-[10px] hover:bg-slate-800 active:scale-95 cursor-pointer"
+                className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl flex items-center justify-center gap-3 uppercase tracking-[0.2em] text-[10px] active:scale-95 cursor-pointer"
               >
                 <Sparkles size={18} className="text-emerald-400" />
                 Processar com AI Vision
@@ -173,7 +173,7 @@ export function VisionView() {
                {items.length > 0 && (
                  <button 
                    onClick={() => { setItems([]); setImage(null); setQrUrl(''); }}
-                   className="text-[9px] font-black text-red-400 hover:text-red-600 uppercase tracking-widest cursor-pointer"
+                   className="text-[9px] font-black text-red-400 uppercase tracking-widest cursor-pointer"
                  >
                    Limpar
                  </button>
@@ -212,7 +212,7 @@ export function VisionView() {
                        >
                          <div className="flex-1 border-b border-dotted border-slate-100 pb-1">
                            <p className={cn(
-                             "text-sm font-black tracking-tight group-hover:text-emerald-600 transition-colors uppercase",
+                             "text-sm font-black tracking-tight transition-colors uppercase",
                              item.nome === "Desconhecido" ? "text-slate-300 italic" : "text-slate-700"
                            )}>
                              {item.nome}
@@ -235,7 +235,7 @@ export function VisionView() {
                       </div>
                       <button 
                         onClick={saveToFinances}
-                        className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-95 cursor-pointer"
+                        className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-100 active:scale-95 cursor-pointer"
                       >
                         Lançar em Finanças
                       </button>

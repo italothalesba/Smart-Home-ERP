@@ -50,7 +50,7 @@ function NavItem({
       onClick={onClick}
       className={cn(
         "flex flex-col items-center justify-center gap-1 p-2 relative group cursor-pointer",
-        active ? "text-emerald-600" : "text-slate-400 hover:text-slate-600"
+        active ? "text-emerald-600" : "text-slate-400"
       )}
     >
       <div className={cn(
@@ -117,10 +117,10 @@ function DashboardView({
   };
 
   const totalMonthlyImpact = finances.reduce((acc, f) => {
-    if (f.type === FinanceType.PARCELADO && f.totalInstallments) {
-      return acc + (f.value / f.totalInstallments);
-    }
-    return acc + f.value;
+    const value = f.type === FinanceType.PARCELADO && f.totalInstallments 
+      ? f.value / f.totalInstallments 
+      : f.value;
+    return acc + (Math.round(value * 100) / 100);
   }, 0);
 
   const lowStockItems = products.filter(p => p.quantity <= (p.minStock || 0));
@@ -144,14 +144,14 @@ function DashboardView({
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setShowShare(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-emerald-500 hover:text-emerald-600 cursor-pointer shadow-sm group"
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer shadow-sm group"
           >
             <Smartphone size={14} />
             Sincronizar Celular
           </button>
           <button 
             onClick={onLogout}
-            className="p-2.5 bg-slate-100 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl cursor-pointer lg:hidden"
+            className="p-2.5 bg-slate-100 text-slate-400 rounded-xl cursor-pointer lg:hidden"
             title="Sair"
           >
             <LogOut size={18} />
@@ -189,8 +189,8 @@ function DashboardView({
                 />
               </div>
               <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.1em]">
-                <span className="text-white">Consumido: R$ {totalMonthlyImpact.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                <span className="text-emerald-100 italic">Restante: R$ {(budget - totalMonthlyImpact).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                <span className="text-white">Consumido: R$ {(Math.round(totalMonthlyImpact * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                <span className="text-emerald-100 italic">Restante: R$ {(Math.round((budget - totalMonthlyImpact) * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
           </div>
@@ -212,7 +212,7 @@ function DashboardView({
 
           <button 
             onClick={() => onNavigate('ai')}
-            className="w-full mt-8 py-4 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-[10px] font-black rounded-2xl uppercase tracking-[0.2em] shadow-lg shadow-emerald-500/10 cursor-pointer"
+            className="w-full mt-8 py-4 bg-emerald-500 active:scale-95 text-white text-[10px] font-black rounded-2xl uppercase tracking-[0.2em] shadow-lg shadow-emerald-500/10 cursor-pointer"
           >
             Acessar Scanner AI
           </button>
@@ -228,7 +228,7 @@ function DashboardView({
                 </div>
               ) : (
                 finances.slice(0, 3).map((f) => (
-                  <div key={f.id} className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-white hover:shadow-md hover:border-emerald-100 rounded-2xl border border-slate-50 group cursor-pointer">
+                  <div key={f.id} className="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-50 group cursor-pointer">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white font-black text-[9px]">
                         {f.type[0].toUpperCase()}
@@ -241,7 +241,10 @@ function DashboardView({
                       </div>
                     </div>
                     <p className="font-black text-slate-900 text-xs italic shrink-0">
-                      R$ {(f.type === FinanceType.PARCELADO ? f.value / (f.totalInstallments || 1) : f.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {(() => {
+                        const val = f.type === FinanceType.PARCELADO ? f.value / (f.totalInstallments || 1) : f.value;
+                        return (Math.round(val * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                      })()}
                     </p>
                   </div>
                 ))
@@ -249,7 +252,7 @@ function DashboardView({
             </div>
             <button 
               onClick={() => onNavigate('finance')}
-              className="w-full mt-4 py-3 bg-slate-50 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer"
+              className="w-full mt-4 py-3 bg-slate-50 text-slate-500 rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer"
             >
               Ver Todas Contas
             </button>
@@ -284,7 +287,7 @@ function DashboardView({
             </div>
             <button 
               onClick={() => onNavigate('market')}
-              className="w-full mt-4 py-3 bg-slate-50 text-slate-500 hover:bg-red-50 hover:text-red-600 rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer"
+              className="w-full mt-4 py-3 bg-slate-50 text-slate-500 rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer"
             >
               Gerenciar Despensa
             </button>
@@ -325,7 +328,7 @@ function DashboardView({
             >
               <button 
                 onClick={() => setShowShare(false)}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -354,7 +357,7 @@ function DashboardView({
                       navigator.clipboard.writeText(publicUrl);
                       alert('Link copiado!');
                     }}
-                    className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest cursor-pointer"
+                    className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest cursor-pointer"
                   >
                     <Copy size={14} />
                     Copiar Link
@@ -466,7 +469,7 @@ export default function App() {
           </div>
           <button
             onClick={login}
-            className="w-full bg-white text-slate-900 font-black py-5 px-6 rounded-[24px] shadow-sm border border-slate-200 hover:shadow-md hover:border-slate-300 transition-all flex items-center justify-center gap-4 text-lg active:scale-95 uppercase tracking-widest"
+            className="w-full bg-white text-slate-900 font-black py-5 px-6 rounded-[24px] shadow-sm border border-slate-200 transition-all flex items-center justify-center gap-4 text-lg active:scale-95 uppercase tracking-widest"
           >
             <img src="https://www.google.com/favicon.ico" className="w-6 h-6" alt="Google" />
             LOGIN VIA GOOGLE
@@ -507,7 +510,7 @@ export default function App() {
           </div>
           <button 
             onClick={logout}
-            className="w-full py-3 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-3 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer"
           >
             <LogOut size={14} />
             Logout
@@ -627,7 +630,7 @@ function SidebarNavItem({
         "w-full flex items-center gap-4 px-4 py-3 rounded-2xl font-bold text-[11px] uppercase tracking-widest cursor-pointer",
         active 
           ? "bg-emerald-50 text-emerald-700 shadow-sm shadow-emerald-100" 
-          : "text-slate-400 hover:text-slate-700 hover:bg-slate-50"
+          : "text-slate-400"
       )}
     >
       <Icon size={18} />

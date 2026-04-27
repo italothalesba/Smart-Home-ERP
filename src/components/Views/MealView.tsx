@@ -547,7 +547,7 @@ export function MealView() {
         <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
           <button 
             onClick={loadSuggestedDiet}
-            className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer mr-1"
+            className="px-6 py-2.5 bg-slate-100 text-slate-600 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer mr-1"
           >
             Sugestão IA
           </button>
@@ -555,7 +555,7 @@ export function MealView() {
             onClick={() => setIsAdding(!isAdding)}
             className={cn(
               "flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer",
-              isAdding ? "bg-slate-900 text-white" : "bg-emerald-600 text-white shadow-lg shadow-emerald-100 hover:bg-emerald-700"
+              isAdding ? "bg-slate-900 text-white" : "bg-emerald-600 text-white shadow-lg shadow-emerald-100"
             )}
           >
             <Plus size={14} className={cn("transition-transform", isAdding && "rotate-45")} />
@@ -638,7 +638,7 @@ export function MealView() {
                        <button 
                          type="button"
                          onClick={handleAddIngredient}
-                         className="p-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all cursor-pointer"
+                         className="p-3 bg-emerald-600 text-white rounded-xl transition-all cursor-pointer"
                        >
                          <Plus size={16} />
                        </button>
@@ -659,7 +659,7 @@ export function MealView() {
                             <button 
                               type="button" 
                               onClick={() => handleRemoveIngredient(idx)}
-                              className="p-1.5 text-slate-300 hover:text-red-500 transition-colors cursor-pointer"
+                              className="p-1.5 text-slate-300 transition-colors cursor-pointer"
                             >
                               <X size={14} />
                             </button>
@@ -681,7 +681,7 @@ export function MealView() {
                   />
                 </div>
 
-                <button type="submit" className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl shadow-lg uppercase tracking-[0.2em] text-[10px] hover:bg-slate-800 transition-all active:scale-95 cursor-pointer">
+                <button type="submit" className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl shadow-lg uppercase tracking-[0.2em] text-[10px] transition-all active:scale-95 cursor-pointer">
                   Confirmar Planejamento
                 </button>
               </motion.form>
@@ -707,10 +707,10 @@ export function MealView() {
                       <motion.div 
                         layout
                         key={meal.id} 
-                        className="bg-white rounded-[28px] p-5 border border-slate-100 shadow-sm flex items-center justify-between gap-4 hover:border-emerald-200 hover:shadow-md group"
+                        className="bg-white rounded-[28px] p-5 border border-slate-100 shadow-sm flex items-center justify-between gap-4 group"
                       >
                         <div className="flex gap-4 items-center min-w-0">
-                          <div className="w-14 h-14 rounded-2xl bg-slate-50 text-slate-800 flex items-center justify-center shrink-0 shadow-sm border border-white group-hover:bg-emerald-600 group-hover:text-white">
+                          <div className="w-14 h-14 rounded-2xl bg-slate-50 text-slate-800 flex items-center justify-center shrink-0 shadow-sm border border-white">
                             <ChefHat size={24} />
                           </div>
                           <div className="min-w-0">
@@ -730,17 +730,17 @@ export function MealView() {
                                </span>
                             </div>
                             <h4 className="text-sm font-black text-slate-900 truncate">{meal.title}</h4>
-                            <div className="flex items-center gap-3 mt-1.5 opacity-0 group-hover:opacity-100">
+                            <div className="flex items-center gap-3 mt-1.5">
                                <button 
                                  onClick={() => setSelectedMeal(meal)}
-                                 className="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-1.5 hover:underline cursor-pointer"
+                                 className="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-1.5 cursor-pointer"
                                >
                                  <Calculator size={10} /> Calculadora Técnica
                                </button>
                                <span className="text-slate-200">/</span>
                                <button 
                                  onClick={() => remove(meal.id)}
-                                 className="text-[9px] font-black text-red-400 uppercase flex items-center gap-1.5 hover:text-red-600 cursor-pointer"
+                                 className="text-[9px] font-black text-red-400 uppercase flex items-center gap-1.5 cursor-pointer"
                                >
                                  Excluir
                                </button>
@@ -749,7 +749,7 @@ export function MealView() {
                         </div>
                         
                         <div className="shrink-0 hidden md:block">
-                           <ArrowRight size={16} className="text-slate-200 group-hover:text-emerald-500" />
+                           <ArrowRight size={16} className="text-slate-200" />
                         </div>
                       </motion.div>
                     ))}
@@ -791,14 +791,14 @@ export function MealView() {
                   >
                     <div className="flex justify-between items-center">
                       <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest italic">Inventory Requiriments</h4>
-                      <button onClick={() => setShoppingList([])} className="p-2 bg-white/10 hover:bg-red-500/20 text-white rounded-xl cursor-pointer">
+                      <button onClick={() => setShoppingList([])} className="p-2 bg-white/10 text-white rounded-xl cursor-pointer">
                         <Trash2 size={14} />
                       </button>
                     </div>
                     <div className="space-y-3 max-h-[300px] overflow-y-auto pr-4 custom-scrollbar">
                       {shoppingList.map((item, i) => (
                         <div key={i} className="flex items-center gap-3 text-xs text-slate-100 font-bold group/item py-1">
-                          <div className="w-2 h-2 rounded-full border-2 border-emerald-500 group-hover/item:bg-emerald-500" />
+                          <div className="w-2 h-2 rounded-full border-2 border-emerald-500" />
                           <span className="truncate tracking-tight">{item}</span>
                         </div>
                       ))}
@@ -813,7 +813,7 @@ export function MealView() {
                     <button 
                       onClick={handleGenerateList}
                       disabled={isGenerating || meals.length === 0}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black py-5 rounded-2xl shadow-xl shadow-emerald-950/40 flex items-center justify-center gap-3 uppercase tracking-widest text-xs active:scale-95 cursor-pointer"
+                      className="w-full bg-emerald-600 disabled:opacity-50 text-white font-black py-5 rounded-2xl shadow-xl shadow-emerald-950/40 flex items-center justify-center gap-3 uppercase tracking-widest text-xs active:scale-95 cursor-pointer"
                     >
                       {isGenerating ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
                       {isGenerating ? 'Calculando Insumos...' : 'Gerar Lista de Compras'}

@@ -207,7 +207,7 @@ export function PantryView() {
         <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
           <button 
             onClick={loadSuggestedList}
-            className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest cursor-pointer mr-1"
+            className="px-6 py-2.5 bg-slate-100 text-slate-600 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest cursor-pointer mr-1"
           >
             Sugestão IA
           </button>
@@ -215,7 +215,7 @@ export function PantryView() {
             onClick={() => setIsAdding(!isAdding)}
             className={cn(
               "flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer",
-              isAdding ? "bg-slate-900 text-white" : "bg-emerald-600 text-white shadow-lg shadow-emerald-100 hover:bg-emerald-700"
+              isAdding ? "bg-slate-900 text-white" : "bg-emerald-600 text-white shadow-lg shadow-emerald-100"
             )}
           >
             <Plus size={14} className={cn("transition-transform", isAdding && "rotate-45")} />
@@ -321,7 +321,7 @@ export function PantryView() {
                   </div>
                 </div>
 
-                <button type="submit" className="w-full bg-emerald-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-emerald-100 uppercase tracking-[0.2em] text-[10px] hover:bg-emerald-700 active:scale-95 cursor-pointer mt-4">
+                <button type="submit" className="w-full bg-emerald-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-emerald-100 uppercase tracking-[0.2em] text-[10px] active:scale-95 cursor-pointer mt-4">
                   Cadastrar na Despensa
                 </button>
               </motion.form>
@@ -382,7 +382,7 @@ export function PantryView() {
                       key={p.id}
                       className={cn(
                         "p-5 rounded-[28px] border shadow-sm flex flex-col justify-between min-h-[160px] group",
-                        p.quantity <= (p.minStock || 0) && !editingId ? "bg-red-50/50 border-red-100" : "bg-white border-slate-100 hover:border-emerald-200 hover:shadow-md"
+                        p.quantity <= (p.minStock || 0) && !editingId ? "bg-red-50/50 border-red-100" : "bg-white border-slate-100 shadow-sm"
                       )}
                     >
                       {editingId === p.id ? (
@@ -480,7 +480,7 @@ export function PantryView() {
                                        return (
                                          <button 
                                            onClick={() => update(p.id, { quantity: suggestedNum })}
-                                           className="mt-2 text-[9px] font-black text-emerald-600 uppercase bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 flex items-center gap-1.5 hover:bg-emerald-100 transition-colors cursor-pointer"
+                                           className="mt-2 text-[9px] font-black text-emerald-600 uppercase bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 flex items-center gap-1.5 transition-colors cursor-pointer"
                                          >
                                            <ShoppingCart size={10} />
                                            Sincronizar Dieta: {rawSuggested}
@@ -492,9 +492,9 @@ export function PantryView() {
                                  })()}
                                </div>
                             </div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-                              <button onClick={() => startEditing(p)} className="p-2 text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 rounded-xl cursor-pointer"><Pencil size={14}/></button>
-                              <button onClick={() => remove(p.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl cursor-pointer"><Trash2 size={14}/></button>
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => startEditing(p)} className="p-2 text-slate-300 rounded-xl cursor-pointer"><Pencil size={14}/></button>
+                              <button onClick={() => remove(p.id)} className="p-2 text-slate-300 rounded-xl cursor-pointer"><Trash2 size={14}/></button>
                             </div>
                           </div>
 
@@ -519,11 +519,11 @@ export function PantryView() {
                             <div className="flex gap-1 shrink-0">
                                <button 
                                  onClick={() => update(p.id, { quantity: Math.max(0, p.quantity - 1) })}
-                                 className="w-10 h-10 bg-slate-100 hover:bg-slate-900 hover:text-white rounded-xl flex items-center justify-center font-black cursor-pointer"
+                                 className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center font-black cursor-pointer"
                                >-</button>
                                <button 
                                  onClick={() => update(p.id, { quantity: p.quantity + 1 })}
-                                 className="w-10 h-10 bg-slate-100 hover:bg-emerald-600 hover:text-white rounded-xl flex items-center justify-center font-black cursor-pointer"
+                                 className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center font-black cursor-pointer"
                                >+</button>
                             </div>
                           </div>

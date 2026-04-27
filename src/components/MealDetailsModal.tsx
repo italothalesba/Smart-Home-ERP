@@ -171,7 +171,7 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
               </span>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white">
+          <button onClick={onClose} className="p-2 rounded-full text-slate-400">
             <X size={20} />
           </button>
         </div>
@@ -183,7 +183,7 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Itens da Feira</h4>
               <button 
                 onClick={() => setIsAddingNewPantryItem(!isAddingNewPantryItem)}
-                className="text-[10px] font-black text-emerald-600 uppercase flex items-center gap-1 hover:text-emerald-700"
+                className="text-[10px] font-black text-emerald-600 uppercase flex items-center gap-1"
               >
                 <Plus size={10} />
                 Novo Item na Feira
@@ -228,7 +228,7 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
                 <button
                   key={p.id}
                   onClick={() => selectProduct(p)}
-                  className="shrink-0 px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-bold text-slate-600 uppercase hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700"
+                  className="shrink-0 px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-bold text-slate-600 uppercase"
                 >
                   {p.name}
                 </button>
@@ -273,7 +273,7 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
                               });
                               setShowSuggestions(false);
                             }}
-                            className="w-full px-4 py-3 text-left hover:bg-emerald-50 flex items-center justify-between group border-b border-slate-50 last:border-0"
+                            className="w-full px-4 py-3 text-left flex items-center justify-between group border-b border-slate-50 last:border-0"
                           >
                             <span className="text-sm font-bold text-slate-700">{p.name}</span>
                             <span className="text-[10px] font-bold text-slate-400 uppercase">{p.unit}</span>
@@ -303,7 +303,7 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
                 </div>
                 <button 
                   onClick={handleAddIngredient}
-                  className="bg-emerald-600 text-white p-3 rounded-2xl shadow-lg shadow-emerald-100 hover:bg-emerald-700"
+                  className="bg-emerald-600 text-white p-3 rounded-2xl shadow-lg shadow-emerald-100"
                 >
                   <Plus size={20} />
                 </button>
@@ -352,7 +352,7 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
                       </div>
                       <button 
                         onClick={() => removeIngredient(idx)}
-                        className="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 hover:bg-red-50 rounded-lg"
+                        className="p-2 text-slate-300 rounded-lg"
                       >
                         <Trash2 size={16} />
                       </button>

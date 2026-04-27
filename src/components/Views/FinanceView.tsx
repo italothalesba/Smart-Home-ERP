@@ -34,13 +34,13 @@ export function FinanceView() {
   const totalIncomes = incomes.reduce((acc, i) => acc + i.value, 0);
   
   const totalMonthlyExpenditure = finances.reduce((acc, f) => {
-    if (f.type === FinanceType.PARCELADO && f.totalInstallments) {
-      return acc + (f.value / f.totalInstallments);
-    }
-    return acc + f.value;
+    const value = f.type === FinanceType.PARCELADO && f.totalInstallments 
+      ? f.value / f.totalInstallments 
+      : f.value;
+    return acc + (Math.round(value * 100) / 100);
   }, 0);
 
-  const balance = totalIncomes - totalMonthlyExpenditure;
+  const balance = Math.round((totalIncomes - totalMonthlyExpenditure) * 100) / 100;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +52,7 @@ export function FinanceView() {
 
     addFinance({
       description: form.description,
-      value: parseFloat(form.value),
+      value: Math.round(parseFloat(form.value) * 100) / 100,
       type: form.type,
       totalInstallments: form.type === FinanceType.PARCELADO ? parseInt(form.totalInstallments) : 1,
       currentInstallment: 1,
@@ -67,7 +67,7 @@ export function FinanceView() {
     e.preventDefault();
     addIncome({
       description: incomeForm.description,
-      value: parseFloat(incomeForm.value),
+      value: Math.round(parseFloat(incomeForm.value) * 100) / 100,
       type: incomeForm.type
     });
     setIsAddingIncome(false);
@@ -113,7 +113,7 @@ export function FinanceView() {
           </div>
           <button 
             onClick={() => setIsAddingIncome(!isAddingIncome)}
-            className="mt-4 flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:underline cursor-pointer"
+            className="mt-4 flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest cursor-pointer"
           >
             <Plus size={14} /> {isAddingIncome ? "Fechar" : "Novo Ganho"}
           </button>
@@ -133,7 +133,7 @@ export function FinanceView() {
           </div>
           <button 
             onClick={() => setIsAdding(!isAdding)}
-            className="mt-4 flex items-center gap-2 text-[10px] font-black text-red-500 uppercase tracking-widest hover:underline cursor-pointer"
+            className="mt-4 flex items-center gap-2 text-[10px] font-black text-red-500 uppercase tracking-widest cursor-pointer"
           >
             <Plus size={14} /> {isAdding ? "Fechar" : "Nova Despesa"}
           </button>
@@ -190,7 +190,7 @@ export function FinanceView() {
                   </div>
                 </div>
 
-                <button type="submit" className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl shadow-lg uppercase tracking-[0.2em] text-[10px] hover:bg-slate-800 transition-all cursor-pointer">
+                <button type="submit" className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl shadow-lg uppercase tracking-[0.2em] text-[10px] cursor-pointer" id="btn-submit-income">
                   Confirmar Entrada
                 </button>
               </motion.form>
@@ -211,7 +211,7 @@ export function FinanceView() {
               )}
               
               {incomes.map((i) => (
-                <div key={i.id} className="p-5 flex justify-between items-center hover:bg-slate-50/80 group">
+                <div key={i.id} className="p-5 flex justify-between items-center group">
                    <div className="flex gap-4 items-center">
                      <div className={cn(
                        "w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] shrink-0 border border-white shadow-sm",
@@ -230,7 +230,7 @@ export function FinanceView() {
                       </span>
                       <button 
                         onClick={() => removeIncome(i.id)}
-                        className="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-red-500 opacity-0 group-hover:opacity-100"
+                        className="w-8 h-8 flex items-center justify-center text-slate-200"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -319,7 +319,7 @@ export function FinanceView() {
                   </div>
                 </div>
 
-                <button type="submit" className="w-full bg-red-500 text-white font-black py-4 rounded-2xl shadow-lg uppercase tracking-[0.2em] text-[10px] hover:bg-red-600 transition-all cursor-pointer">
+                <button type="submit" className="w-full bg-red-500 text-white font-black py-4 rounded-2xl shadow-lg uppercase tracking-[0.2em] text-[10px] cursor-pointer" id="btn-submit-expense">
                   Registrar Saída
                 </button>
               </motion.form>
@@ -342,7 +342,7 @@ export function FinanceView() {
                 <motion.div 
                   layout
                   key={f.id}
-                  className="p-5 flex justify-between items-center hover:bg-slate-50/80 group"
+                  className="p-5 flex justify-between items-center group"
                 >
                   <div className="flex gap-4 items-center min-w-0">
                     <div className={cn(
@@ -367,12 +367,15 @@ export function FinanceView() {
                   <div className="flex items-center gap-6">
                     <div className="text-right shrink-0">
                       <p className="text-base font-black text-slate-900 tracking-tighter italic">
-                        R$ {(f.type === FinanceType.PARCELADO ? f.value / (f.totalInstallments || 1) : f.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {(() => {
+                          const val = f.type === FinanceType.PARCELADO ? f.value / (f.totalInstallments || 1) : f.value;
+                          return (Math.round(val * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                        })()}
                       </p>
                     </div>
                     <button 
                       onClick={() => removeFinance(f.id)} 
-                      className="w-10 h-10 flex items-center justify-center text-slate-200 hover:text-red-500 cursor-pointer opacity-0 group-hover:opacity-100"
+                      className="w-10 h-10 flex items-center justify-center text-slate-200 cursor-pointer"
                     >
                       <Trash2 size={16} />
                     </button>
