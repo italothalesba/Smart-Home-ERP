@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 const getGeminiKey = () => {
   const key = process.env.GEMINI_API_KEY;
@@ -8,7 +8,7 @@ const getGeminiKey = () => {
   return key || 'MISSING_KEY';
 };
 
-const genAI = new GoogleGenerativeAI(getGeminiKey());
+const ai = new GoogleGenAI({ apiKey: getGeminiKey() });
 
 export interface ReceiptItem {
   nome: string;
@@ -23,11 +23,12 @@ export async function testGeminiConnection(): Promise<{ success: boolean; messag
       return { success: false, message: "API Key ausente nas variáveis de ambiente." };
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent("ping");
-    const response = await result.response;
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: "ping",
+    });
 
-    if (response.text()) {
+    if (response.text) {
       return { success: true, message: "Conexão com Gemini estabelecida com sucesso (Free Tier)." };
     }
     return { success: false, message: "Resposta vazia do Gemini." };
@@ -39,25 +40,6 @@ export async function testGeminiConnection(): Promise<{ success: boolean; messag
 
 export async function processMarketReceipt(base64Image: string): Promise<ReceiptItem[]> {
   try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: SchemaType.ARRAY,
-          items: {
-            type: SchemaType.OBJECT,
-            properties: {
-              nome: { type: SchemaType.STRING, description: "Nome limpo ou Desconhecido" },
-              preco: { type: SchemaType.NUMBER, description: "Valor extraído" },
-              metadata: { type: SchemaType.STRING, description: "Informação adicional de contexto" }
-            },
-            required: ["nome", "preco"],
-          },
-        },
-      },
-    });
-
     const prompt = `Aja como um Extrator de Dados de Alta Precisão (Swiss Style).
 Analise este documento (cupom fiscal, print de extrato bancário ou recibo).
 
@@ -70,18 +52,35 @@ LEI IMUTÁVEL:
 
 Retorne APENAS o JSON conforme o schema. O metadata deve conter observações como 'Banco', 'Data' ou 'Total NF'.`;
 
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          mimeType: "image/jpeg",
-          data: base64Image,
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: [
+        { text: prompt },
+        { 
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: base64Image,
+          }
+        }
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              nome: { type: Type.STRING, description: "Nome limpo ou Desconhecido" },
+              preco: { type: Type.NUMBER, description: "Valor extraído" },
+              metadata: { type: Type.STRING, description: "Informação adicional de contexto" }
+            },
+            required: ["nome", "preco"],
+          },
         },
-      },
-    ]);
+      }
+    });
 
-    const response = await result.response;
-    const text = response.text();
+    const text = response.text;
     if (!text) return [];
     return JSON.parse(text);
   } catch (error) {
@@ -92,22 +91,21 @@ Retorne APENAS o JSON conforme o schema. O metadata deve conter observações co
 
 export async function processQrUrl(url: string): Promise<ReceiptItem[]> {
   try {
-    const model = genAI.getGenerativeModel({
+    const prompt = `Analise the following Cupom Fiscal link (Sefaz/NF): ${url}
+Extract total value and main items if possible through URL parameters (e.g. vNF).
+If no item details, return only the total with name 'Total Nota Fiscal'.
+
+Return ONLY a JSON: [{nome: string, preco: number}]`;
+
+    const response = await ai.models.generateContent({
       model: "gemini-1.5-flash",
-      generationConfig: {
+      contents: prompt,
+      config: {
         responseMimeType: "application/json",
-      },
+      }
     });
 
-    const prompt = `Analise o seguinte link de Cupom Fiscal (Sefaz/NF): ${url}
-Extraia o valor total e os itens principais se possível através dos parâmetros da URL (ex: vNF).
-Se não houver detalhes de itens, retorne apenas o total com o nome 'Total Nota Fiscal'.
-
-Retorne APENAS um JSON: [{nome: string, preco: number}]`;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const text = response.text;
     if (!text) return [];
     const parsed = JSON.parse(text);
     return Array.isArray(parsed) ? parsed : [];
@@ -119,22 +117,21 @@ Retorne APENAS um JSON: [{nome: string, preco: number}]`;
 
 export async function generateShoppingList(meals: string[], personCount: number = 2): Promise<string[]> {
   try {
-    const model = genAI.getGenerativeModel({
+    const prompt = `Identity: Nutritionist and House Organizer.
+Task: Generate a technical shopping list for the following dishes: ${meals.join(', ')}. 
+Audience is Brazilian. Consider ${personCount} people consuming.
+Return clean and concise product/ingredient names.
+Respond ONLY with a JSON on the 'itens' key: { "itens": string[] }`;
+
+    const response = await ai.models.generateContent({
       model: "gemini-1.5-flash",
-      generationConfig: {
+      contents: prompt,
+      config: {
         responseMimeType: "application/json",
-      },
+      }
     });
 
-    const prompt = `Identidade: Nutricionista e Organizador Doméstico.
-Tarefa: Gere uma lista de compras técnica para os seguintes pratos: ${meals.join(', ')}. 
-O público é brasileiro. Considere que há ${personCount} pessoas consumindo.
-Retorne nomes de produtos/ingredientes limpos e concisos.
-Responda APENAS com um JSON na chave 'itens': { "itens": string[] }`;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const text = response.text;
     if (!text) return [];
     const parsed = JSON.parse(text);
     return parsed.itens || [];

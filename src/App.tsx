@@ -20,9 +20,6 @@ import {
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
 // --- Types ---
 import { UserProfile, Finance, Product, FinanceType } from './types';
 
@@ -34,11 +31,6 @@ import { FinanceView } from './components/Views/FinanceView';
 import { PantryView } from './components/Views/PantryView';
 import { VisionView } from './components/Views/VisionView';
 import { MealView } from './components/Views/MealView';
-
-// --- Utils ---
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 // --- Components ---
 
@@ -417,7 +409,7 @@ export default function App() {
     );
   }
 
-  if (!user) {
+  if (!profile) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center p-6 bg-slate-50 relative overflow-hidden font-sans">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(16,185,129,0.1),transparent_70%)]" />
