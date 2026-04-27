@@ -43,7 +43,7 @@ export function useFirestore<T>(collectionName: string) {
     try {
       await addDoc(collection(db, `users/${userId}/${collectionName}`), {
         ...item,
-        updatedAt: new Date().toISOString(),
+        updatedAt: serverTimestamp(),
         ownerId: userId
       });
     } catch (err) {
@@ -57,7 +57,7 @@ export function useFirestore<T>(collectionName: string) {
     try {
       await updateDoc(doc(db, `users/${userId}/${collectionName}`, id), {
         ...item,
-        updatedAt: new Date().toISOString()
+        updatedAt: serverTimestamp()
       });
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, collectionName);

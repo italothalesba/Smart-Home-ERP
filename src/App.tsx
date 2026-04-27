@@ -1,5 +1,6 @@
-import { auth, googleProvider } from './lib/firebase';
+import { auth, googleProvider, db } from './lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
@@ -9,7 +10,8 @@ import {
   Camera,
   AlertCircle,
   ShoppingBag,
-  UtensilsCrossed
+  UtensilsCrossed,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -84,6 +86,8 @@ function Card({ children, className, title, subtitle }: { children: React.ReactN
   );
 }
 
+import { seedUserData } from './lib/seedData';
+
 function DashboardView({ 
   user, 
   onLogout, 
@@ -95,6 +99,21 @@ function DashboardView({
 }) {
   const { data: finances } = useFirestore<Finance>('finances');
   const { data: products } = useFirestore<Product>('products');
+  const [seeding, setSeeding] = useState(false);
+
+  const handleSeed = async () => {
+    if (confirm('Deseja importar os dados informados anteriormente? Isso preencherá suas finanças, estoque e dieta.')) {
+      setSeeding(true);
+      try {
+        await seedUserData(user.uid);
+        alert('Dados importados com sucesso!');
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setSeeding(false);
+      }
+    }
+  };
 
   const totalMonthlyImpact = finances.reduce((acc, f) => {
     if (f.type === FinanceType.PARCELA && f.totalInstallments) {
@@ -104,7 +123,7 @@ function DashboardView({
   }, 0);
 
   const lowStockItems = products.filter(p => p.quantity <= (p.minStock || 0));
-  const budget = 1000;
+  const budget = user.budget || 1000;
   const consumedPercent = (totalMonthlyImpact / budget) * 100;
 
   return (
@@ -118,7 +137,17 @@ function DashboardView({
             Olá, {user.displayName?.split(' ')[0]} • v1.0
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          {products.length === 0 && (
+            <button 
+              onClick={handleSeed}
+              disabled={seeding}
+              className="px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-emerald-200 transition-colors flex items-center gap-1.5"
+            >
+              <Sparkles size={12} />
+              {seeding ? '...' : 'Importar'}
+            </button>
+          )}
           <button 
             onClick={onLogout}
             className="p-2 text-slate-300 hover:text-red-500 transition-colors cursor-pointer"
@@ -244,14 +273,39 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, (u) => {
+    return onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
+        const userRef = doc(db, 'users', u.uid);
+        const userSnap = await getDoc(userRef);
+        
+        let budget = 1300;
+        if (userSnap.exists()) {
+          budget = userSnap.data().budget || 1300;
+        } else {
+          // Initialize user profile in Firestore
+          await setDoc(userRef, {
+            uid: u.uid,
+            displayName: u.displayName,
+            email: u.email,
+            budget: 1300,
+            createdAt: new Date().toISOString()
+          });
+
+          // Automatic seed for first time users
+          try {
+            await seedUserData(u.uid);
+            console.log('Seed data applied automatically');
+          } catch (err) {
+            console.error('Auto-seed error:', err);
+          }
+        }
+
         setProfile({
           uid: u.uid,
           displayName: u.displayName,
           email: u.email,
-          budget: 1000
+          budget: budget
         });
       }
       setLoading(false);
@@ -373,7 +427,7 @@ export default function App() {
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-2xl border-t border-slate-200 px-4 py-5 flex justify-between items-center max-w-md mx-auto z-50 rounded-t-[32px] h-24">
         <NavItem icon={LayoutDashboard} label="Dash" active={activeTab === 'dash'} onClick={() => setActiveTab('dash')} />
-        <NavItem icon={ShoppingBag} label="Estoque" active={activeTab === 'market'} onClick={() => setActiveTab('market')} />
+        <NavItem icon={ShoppingBag} label="Feira" active={activeTab === 'market'} onClick={() => setActiveTab('market')} />
         <div className="relative -top-12">
           <button 
             onClick={() => setActiveTab('ai')}

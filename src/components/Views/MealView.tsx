@@ -65,6 +65,59 @@ export function MealView() {
     setIsGenerating(false);
   };
 
+  const loadSuggestedDiet = () => {
+    const suggested = [
+      // Segunda
+      { day: 'Segunda', type: MealType.CAFE, title: 'Cuscuz (2 porções) com ovo, café com leite e fritas', ingredients: ['Cuscuz', 'Ovo', 'Café', 'Leite', 'Frutas'] },
+      { day: 'Segunda', type: MealType.ALMOCO, title: 'Sobra de Domingo', ingredients: [] },
+      { day: 'Segunda', type: MealType.LANCHE, title: '1/3 CreamCracker, goiabada e café', ingredients: ['CreamCracker', 'Goiabada', 'Café'] },
+      { day: 'Segunda', type: MealType.JANTAR, title: 'Macarrão à Bolonhesa Enriquecido', ingredients: ['Macarrão', 'Carne moída', 'Molho de tomate (2 pct)', 'Milho', 'Ervilha', 'Cebola', 'Tomate', 'Coentro', 'Alho', 'Creme de Leite'] },
+      
+      // Terça
+      { day: 'Terça', type: MealType.CAFE, title: '2 Tapiocas com ovo, café com leite e banana', ingredients: ['Tapioca', 'Ovo', 'Café', 'Leite', 'Banana'] },
+      { day: 'Terça', type: MealType.ALMOCO, title: 'Sobra de Segunda', ingredients: [] },
+      { day: 'Terça', type: MealType.LANCHE, title: '2 Pães com mortadela defumada, café e 1 laranja', ingredients: ['Pão', 'Mortadela', 'Café', 'Laranja'] },
+      { day: 'Terça', type: MealType.JANTAR, title: 'Arroz, Frango ensopado e salada colorida', ingredients: ['Arroz', 'Frango', 'Cenoura', 'Batata', 'Cebola', 'Tomate', 'Coentro', 'Alho'] },
+
+      // Quarta
+      { day: 'Quarta', type: MealType.CAFE, title: '1/3 CreamCracker, café com leite e 1 ovo mexido', ingredients: ['CreamCracker', 'Café', 'Leite', 'Ovo'] },
+      { day: 'Quarta', type: MealType.ALMOCO, title: 'Cuscuz, calabresa refogada e salada verde', ingredients: ['Cuscuz', 'Calabresa', 'Salada verde', 'Verduras', 'Café'] },
+      { day: 'Quarta', type: MealType.LANCHE, title: '2 Pães com ovo e café', ingredients: ['Pão', 'Ovo', 'Café'] },
+      { day: 'Quarta', type: MealType.JANTAR, title: 'Arroz, Fígado acebolado, salada e abacaxi', ingredients: ['Arroz', 'Fígado', 'Cebola', 'Tomate', 'Repolho', 'Abacaxi'] },
+
+      // Quinta
+      { day: 'Quinta', type: MealType.CAFE, title: 'Cuscuz (2 porções) com ovo, café com leite e frutas', ingredients: ['Cuscuz', 'Ovo', 'Café', 'Leite', 'Frutas'] },
+      { day: 'Quinta', type: MealType.ALMOCO, title: 'Sobra de Quarta', ingredients: [] },
+      { day: 'Quinta', type: MealType.LANCHE, title: 'Bananada com 1/3 CreamCracker', ingredients: ['Bananada', 'CreamCracker'] },
+      { day: 'Quinta', type: MealType.JANTAR, title: 'Macarrão com calabresa e queijo', ingredients: ['Macarrão', 'Calabresa', 'Creme de leite', 'Queijo', 'Alho', 'Cebola'] },
+
+      // Sexta
+      { day: 'Sexta', type: MealType.CAFE, title: '2 Pães com mortadela defumada e café com leite', ingredients: ['Pão', 'Mortadela', 'Café', 'Leite'] },
+      { day: 'Sexta', type: MealType.ALMOCO, title: 'Sobra de Quinta', ingredients: [] },
+      { day: 'Sexta', type: MealType.LANCHE, title: 'Cuscuz com ovo e café', ingredients: ['Cuscuz', 'Ovo', 'Café'] },
+      { day: 'Sexta', type: MealType.JANTAR, title: 'Arroz, Bisteca grelhada e salada de repolho', ingredients: ['Arroz', 'Bisteca', 'Repolho', 'Cenoura', 'Cebola', 'Alho'] },
+
+      // Sábado (3 pessoas)
+      { day: 'Sábado', type: MealType.CAFE, title: 'Cuscuz completo (ovo/fruta), café com leite', ingredients: ['Cuscuz', 'Ovo', 'Fruta', 'Café', 'Leite'] },
+      { day: 'Sábado', type: MealType.ALMOCO, title: 'Arroz, Frango, Vegetais e Salada Verde', ingredients: ['Arroz', 'Frango', 'Vegetais variados', 'Salada verde', 'Cebola', 'Tomate'] },
+      { day: 'Sábado', type: MealType.LANCHE, title: 'Frutas variadas e café da tarde', ingredients: ['Frutas', 'Café'] },
+      { day: 'Sábado', type: MealType.JANTAR, title: 'Macarrão ao molho com carne moída e queijo', ingredients: ['Macarrão', 'Molho de tomate', 'Carne moída', 'Queijo', 'Cebola', 'Tomate'] },
+
+      // Domingo (3 pessoas)
+      { day: 'Domingo', type: MealType.CAFE, title: 'Tapioca com ovo, frutas e café com leite', ingredients: ['Tapioca', 'Ovo', 'Frutas', 'Café', 'Leite'] },
+      { day: 'Domingo', type: MealType.ALMOCO, title: 'Arroz, Bisteca, Batata e Salada Completa', ingredients: ['Arroz', 'Bisteca', 'Batata', 'Salada', 'Cebola', 'Tomate'] },
+      { day: 'Domingo', type: MealType.LANCHE, title: 'Pães com queijo derretido e café', ingredients: ['Pão', 'Queijo', 'Café'] },
+      { day: 'Domingo', type: MealType.JANTAR, title: 'REF. COMPLETA: Frango assado, Maionese e Salada', ingredients: ['Frango assado', 'Arroz', 'Batata', 'Legumes', 'Maionese', 'Salada', 'Cebola', 'Tomate', 'Coentro'] },
+    ];
+
+    suggested.forEach(meal => {
+      // Avoid exact duplicates
+      if (!meals.find(m => m.day === meal.day && m.type === meal.type)) {
+        add(meal);
+      }
+    });
+  };
+
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2 mb-8">
@@ -77,15 +130,23 @@ export function MealView() {
           <Calendar size={16} className="text-emerald-600" />
           <h3 className="font-bold text-slate-800 uppercase tracking-widest text-[10px]">Cardápio da Semana</h3>
         </div>
-        <button 
-          onClick={() => setIsAdding(!isAdding)}
-          className={cn(
-            "w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all shadow-lg",
-            isAdding ? "bg-slate-800" : "bg-emerald-600 shadow-emerald-100"
-          )}
-        >
-          <Plus size={20} className={cn("transition-transform", isAdding && "rotate-45")} />
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={loadSuggestedDiet}
+            className="px-4 h-10 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all"
+          >
+            Sugerida
+          </button>
+          <button 
+            onClick={() => setIsAdding(!isAdding)}
+            className={cn(
+              "w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all shadow-lg",
+              isAdding ? "bg-slate-800" : "bg-emerald-600 shadow-emerald-100"
+            )}
+          >
+            <Plus size={20} className={cn("transition-transform", isAdding && "rotate-45")} />
+          </button>
+        </div>
       </div>
 
       {isAdding && (
