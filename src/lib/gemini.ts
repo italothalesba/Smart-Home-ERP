@@ -10,6 +10,30 @@ const getGeminiKey = () => {
 
 const ai = new GoogleGenAI({ apiKey: getGeminiKey() });
 
+// Helper for exponential backoff retries
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+  let lastError: any;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      // Only retry on rate limit (429) or transient errors
+      const isRateLimit = error?.message?.includes("429") || error?.status === 429;
+      const isTransient = error?.message?.includes("500") || error?.message?.includes("503");
+      
+      if ((isRateLimit || isTransient) && i < maxRetries - 1) {
+        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+        console.warn(`Gemini busy (429), retrying in ${delay.toFixed(0)}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
+}
+
 export interface ReceiptItem {
   nome: string;
   preco: number;
@@ -23,18 +47,23 @@ export async function testGeminiConnection(): Promise<{ success: boolean; messag
       return { success: false, message: "API Key ausente nas variáveis de ambiente." };
     }
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+    const response = await withRetry(() => ai.models.generateContent({
+      model: "gemini-3-flash-preview",
       contents: "ping",
-    });
+    }));
 
     if (response.text) {
       return { success: true, message: "Conexão com Gemini estabelecida com sucesso (Free Tier)." };
     }
     return { success: false, message: "Resposta vazia do Gemini." };
   } catch (error: any) {
-    console.error("Gemini Test Error:", error);
-    return { success: false, message: error.message || "Erro desconhecido na API do Gemini." };
+    const isRateLimit = error?.message?.includes("429");
+    const msg = isRateLimit 
+      ? "Gemini está com alta demanda no momento (Limite atingido). Tente novamente em alguns segundos."
+      : error.message || "Erro desconhecido na API do Gemini.";
+    
+    console.error("Gemini Test Failure:", error);
+    return { success: false, message: msg };
   }
 }
 
@@ -52,8 +81,8 @@ LEI IMUTÁVEL:
 
 Retorne APENAS o JSON conforme o schema. O metadata deve conter observações como 'Banco', 'Data' ou 'Total NF'.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+    const response = await withRetry(() => ai.models.generateContent({
+      model: "gemini-3-flash-preview",
       contents: [
         { text: prompt },
         { 
@@ -78,7 +107,7 @@ Retorne APENAS o JSON conforme o schema. O metadata deve conter observações co
           },
         },
       }
-    });
+    }));
 
     const text = response.text;
     if (!text) return [];
@@ -97,13 +126,13 @@ If no item details, return only the total with name 'Total Nota Fiscal'.
 
 Return ONLY a JSON: [{nome: string, preco: number}]`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+    const response = await withRetry(() => ai.models.generateContent({
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
       }
-    });
+    }));
 
     const text = response.text;
     if (!text) return [];
@@ -123,13 +152,13 @@ Audience is Brazilian. Consider ${personCount} people consuming.
 Return clean and concise product/ingredient names.
 Respond ONLY with a JSON on the 'itens' key: { "itens": string[] }`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+    const response = await withRetry(() => ai.models.generateContent({
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
       }
-    });
+    }));
 
     const text = response.text;
     if (!text) return [];

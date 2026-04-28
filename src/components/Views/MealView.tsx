@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useFirestore } from '../../hooks/useFirestore';
-import { Meal, MealType, Product, MealIngredient, Finance, FinanceType, FinanceStatus } from '../../types';
+import { Meal, MealType, Product, MealIngredient, Finance, FinanceType, FinanceStatus, MarketItem } from '../../types';
 import { generateShoppingList } from '../../lib/gemini';
 import { 
   ChefHat, 
@@ -47,6 +47,7 @@ export function MealView() {
   const { data: meals, add, update, remove } = useFirestore<Meal>('meals');
   const { data: products, update: updateProduct } = useFirestore<Product>('products');
   const { add: addFinance } = useFirestore<Finance>('finances');
+  const { data: marketItems, add: addMarketItem, remove: removeMarketItem, update: updateMarketItem } = useFirestore<MarketItem>('market_items');
   const [isAdding, setIsAdding] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [shoppingList, setShoppingList] = useState<string[]>([]);
@@ -92,29 +93,55 @@ export function MealView() {
     });
   };
 
-  const syncPantryOnMealChange = (ingredients: MealIngredient[], people: number) => {
-    // The user wants to "automatically increase the quantity in the pantry according to need"
-    // So for each ingredient, we ensure the pantry has at least (people * amountPerPerson)
-    ingredients.forEach(ing => {
-      if (!ing.productId) return;
-      const product = products.find(p => p.id === ing.productId);
-      if (product) {
-        const needed = ing.amountPerPerson * people;
-        // User requested: "automaticamente aumentar a quantidade na aba de estoque de acordo com a necessidade"
-        // This implies that if the need is met, we don't necessarily decrease, but we definitely increase if needed.
-        // Or perhaps they want a strict sync. Let's go with ensuring it reflects the "Planned" amount if it's higher.
-        if (product.quantity < needed) {
-          updateProduct(product.id, { quantity: needed });
-        }
-      }
+  const syncPantryOnMealChange = async () => {
+    // Calculate global requirements
+    const requirements: Record<string, number> = {};
+    meals.forEach(meal => {
+      if (!meal.structuredIngredients) return;
+      const people = meal.peopleCount || 3;
+      meal.structuredIngredients.forEach(ing => {
+        if (!ing.productId) return;
+        requirements[ing.productId] = (requirements[ing.productId] || 0) + (ing.amountPerPerson * people);
+      });
     });
+
+    // Sync with marketItems
+    for (const product of products) {
+      const needed = requirements[product.id] || 0;
+      const deficit = needed - product.quantity;
+      const existingMarketItem = marketItems.find(mi => mi.productId === product.id);
+
+      if (deficit > 0) {
+        if (existingMarketItem) {
+          // Update existing suggestion
+          await updateMarketItem(existingMarketItem.id, { 
+            quantity: deficit,
+            price: product.price,
+            addedAt: new Date().toISOString()
+          });
+        } else {
+          // Add new suggestion
+          await addMarketItem({
+            productId: product.id,
+            name: product.name,
+            quantity: deficit,
+            unit: product.unit,
+            price: product.price,
+            addedAt: new Date().toISOString()
+          });
+        }
+      } else if (existingMarketItem) {
+        // Deficit resolved, remove suggestion
+        await removeMarketItem(existingMarketItem.id);
+      }
+    }
   };
 
-  const handleAddMeal = (e: React.FormEvent) => {
+  const handleAddMeal = async (e: React.FormEvent) => {
     e.preventDefault();
     const ingredientsStringList = form.structuredIngredients.map(ing => `${ing.name} (${ing.amountPerPerson * form.peopleCount}${ing.unit})`);
     
-    add({
+    await add({
       day: form.day,
       type: form.type,
       title: form.title,
@@ -124,8 +151,8 @@ export function MealView() {
       peopleCount: form.peopleCount
     });
 
-    // Automatically adjust pantry based on "necessity"
-    syncPantryOnMealChange(form.structuredIngredients, form.peopleCount);
+    // Re-calculate market needs
+    syncPantryOnMealChange();
 
     setIsAdding(false);
     setForm({ 
@@ -138,10 +165,9 @@ export function MealView() {
     });
   };
 
-  const handleUpdatePeopleCount = (meal: Meal, newCount: number) => {
+  const handleUpdatePeopleCount = async (meal: Meal, newCount: number) => {
     if (newCount === meal.peopleCount) return;
     
-    // Calculate new ingredients string if structured ingredients exist
     let newIngredientsStr = meal.ingredients;
     if (meal.structuredIngredients) {
       newIngredientsStr = meal.structuredIngredients.map(ing => 
@@ -149,14 +175,13 @@ export function MealView() {
       );
     }
     
-    update(meal.id, { 
+    await update(meal.id, { 
       peopleCount: newCount,
       ingredients: newIngredientsStr
     });
 
-    if (meal.structuredIngredients) {
-      syncPantryOnMealChange(meal.structuredIngredients, newCount);
-    }
+    // Re-calculate market needs
+    syncPantryOnMealChange();
   };
 
   const handleSyncDietAndStock = async () => {
@@ -164,49 +189,13 @@ export function MealView() {
     setIsGenerating(true);
 
     try {
-      // 1. Map current requirements
-      const requirements: Record<string, number> = {};
+      await syncPantryOnMealChange();
       
-      meals.forEach(meal => {
-        if (!meal.structuredIngredients) return;
-        meal.structuredIngredients.forEach(ing => {
-          if (!ing.productId) return;
-          const people = meal.peopleCount || 3;
-          const totalNeeded = ing.amountPerPerson * people;
-          requirements[ing.productId] = (requirements[ing.productId] || 0) + totalNeeded;
-        });
-      });
-
-      // 2. Calculate Deficit and Cost
-      let totalFeiraCost = 0;
-      const list: string[] = [];
-
-      products.forEach(product => {
-        const needed = requirements[product.id] || 0;
-        const deficit = needed - product.quantity;
-
-        if (deficit > 0) {
-          const itemCost = deficit * (product.price || 0);
-          totalFeiraCost += itemCost;
-          list.push(`${product.name}: ${deficit.toFixed(2)}${product.unit} → R$ ${itemCost.toFixed(2)}`);
-        }
-      });
-
-      setShoppingList(list);
-
-      // 3. Add to Finances if there's a cost
-      if (totalFeiraCost > 0) {
-        await addFinance({
-          description: `Feira Semanal (${new Date().toLocaleDateString('pt-BR')})`,
-          value: totalFeiraCost,
-          type: FinanceType.EXTRA,
-          status: FinanceStatus.PENDENTE,
-          dueDate: new Date().toISOString(),
-          ownerId: 'system' // Hook handles ownerId usually, but keeping type safe
-        });
-        alert(`Sincronização Concluída!\n\nValor total da feira: R$ ${totalFeiraCost.toFixed(2)}\nLançado em Finanças com sucesso.`);
+      const suggestedCount = marketItems.length;
+      if (suggestedCount > 0) {
+        alert(`${suggestedCount} itens foram sugeridos para compra no Modo Feira com base na sua dieta.`);
       } else {
-        alert('Estoque está em dia com a dieta! Nenhuma compra necessária.');
+        alert('Estoque está em dia com a dieta! Nenhuma sugestão necessária.');
       }
     } catch (error) {
       console.error('Sync Error:', error);
@@ -797,7 +786,10 @@ export function MealView() {
                                </button>
                                <span className="text-slate-200">/</span>
                                <button 
-                                 onClick={() => remove(meal.id)}
+                                 onClick={async () => {
+                                   await remove(meal.id);
+                                   syncPantryOnMealChange();
+                                 }}
                                  className="text-[9px] font-black text-red-400 uppercase flex items-center gap-1.5 cursor-pointer"
                                >
                                  Excluir

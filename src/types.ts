@@ -34,12 +34,25 @@ export interface UserProfile {
 export interface Product {
   id: string;
   name: string;
+  brand?: string;
   price: number;
   quantity: number;
   category: string;
   unit: string;
   minStock: number;
   updatedAt: string;
+  lastPurchasedAt?: string;
+}
+
+export interface MarketItem {
+  id: string;
+  productId: string;
+  name: string;
+  brand?: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  addedAt: string;
 }
 
 export interface Finance {

@@ -73,6 +73,22 @@
       },
       "required": ["name", "species"]
     },
+    "MarketItem": {
+      "title": "Market Item",
+      "description": "Items suggested for purchase in market mode",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "name": { "type": "string" },
+        "brand": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "price": { "type": "number" },
+        "addedAt": { "type": "string" }
+      },
+      "required": ["productId", "name", "quantity"]
+    },
     "UserProfile": {
       "title": "User Profile",
       "description": "User specific data and settings",
@@ -109,6 +125,10 @@
     "/users/{userId}/pets/{petId}": {
       "schema": "Pet",
       "description": "User pet management"
+    },
+    "/users/{userId}/market_items/{itemId}": {
+      "schema": "MarketItem",
+      "description": "Items suggested for purchase"
     }
   }
 }
