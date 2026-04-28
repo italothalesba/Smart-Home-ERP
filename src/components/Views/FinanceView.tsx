@@ -87,23 +87,23 @@ export function FinanceView() {
   return (
     <div className="space-y-8 max-w-5xl mx-auto px-1 md:px-0">
       {/* Header with balance summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-slate-900 text-white rounded-[32px] p-8 shadow-xl relative overflow-hidden group">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        <div className="bg-slate-900 text-white rounded-[32px] p-6 md:p-8 shadow-xl relative overflow-hidden group">
           <div className="absolute right-0 top-0 w-24 h-24 bg-emerald-500/20 rounded-full blur-2xl -mr-8 -mt-8" />
-          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-4">Saldo Previsto</p>
+          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-2 md:mb-4">Saldo Previsto</p>
           <div className="flex items-baseline gap-2">
-            <h2 className="text-4xl font-black tracking-tighter">
+            <h2 className="text-3xl md:text-4xl font-black tracking-tighter">
               R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </h2>
           </div>
           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2">Patrimônio em circulação</p>
         </div>
 
-        <div className="bg-white rounded-[32px] p-8 border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div className="bg-white rounded-[32px] p-6 md:p-8 border border-slate-200 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Ganhos Totais</p>
-              <h3 className="text-2xl font-black text-slate-900 tracking-tighter italic">
+              <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter italic">
                 R$ {totalIncomes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </h3>
             </div>
@@ -113,17 +113,17 @@ export function FinanceView() {
           </div>
           <button 
             onClick={() => setIsAddingIncome(!isAddingIncome)}
-            className="mt-4 flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest cursor-pointer"
+            className="mt-4 flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest cursor-pointer active:scale-95"
           >
             <Plus size={14} /> {isAddingIncome ? "Fechar" : "Novo Ganho"}
           </button>
         </div>
 
-        <div className="bg-white rounded-[32px] p-8 border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div className="bg-white rounded-[32px] p-6 md:p-8 border border-slate-200 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Impacto Mensal</p>
-              <h3 className="text-2xl font-black text-slate-900 tracking-tighter italic">
+              <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter italic">
                 R$ {totalMonthlyExpenditure.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </h3>
             </div>
@@ -133,7 +133,7 @@ export function FinanceView() {
           </div>
           <button 
             onClick={() => setIsAdding(!isAdding)}
-            className="mt-4 flex items-center gap-2 text-[10px] font-black text-red-500 uppercase tracking-widest cursor-pointer"
+            className="mt-4 flex items-center gap-2 text-[10px] font-black text-red-500 uppercase tracking-widest cursor-pointer active:scale-95"
           >
             <Plus size={14} /> {isAdding ? "Fechar" : "Nova Despesa"}
           </button>
@@ -190,7 +190,7 @@ export function FinanceView() {
                   </div>
                 </div>
 
-                <button type="submit" className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl shadow-lg uppercase tracking-[0.2em] text-[10px] cursor-pointer" id="btn-submit-income">
+                <button type="submit" className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl shadow-lg uppercase tracking-[0.2em] text-[10px] cursor-pointer active:scale-95" id="btn-submit-income">
                   Confirmar Entrada
                 </button>
               </motion.form>
@@ -211,28 +211,28 @@ export function FinanceView() {
               )}
               
               {incomes.map((i) => (
-                <div key={i.id} className="p-5 flex justify-between items-center group">
-                   <div className="flex gap-4 items-center">
+                <div key={i.id} className="p-4 md:p-5 flex justify-between items-center group">
+                   <div className="flex gap-4 items-center min-w-0">
                      <div className={cn(
                        "w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] shrink-0 border border-white shadow-sm",
                        i.type === 'fixo' ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"
                      )}>
                        {i.type[0].toUpperCase()}
                      </div>
-                     <div>
-                        <h4 className="text-sm font-black text-slate-900">{i.description}</h4>
+                     <div className="min-w-0">
+                        <h4 className="text-sm font-black text-slate-900 truncate tracking-tight">{i.description}</h4>
                         <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{i.type === 'fixo' ? 'Fixo Mensal' : 'Volátil'}</p>
                      </div>
                    </div>
-                   <div className="flex items-center gap-4">
-                      <span className="text-base font-black text-emerald-600 tracking-tighter">
+                   <div className="flex items-center gap-2 md:gap-4 shrink-0">
+                      <span className="text-sm md:text-base font-black text-emerald-600 tracking-tighter">
                         R$ {i.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                       <button 
                         onClick={() => removeIncome(i.id)}
-                        className="w-8 h-8 flex items-center justify-center text-slate-200"
+                        className="w-10 h-10 flex items-center justify-center text-slate-200 hover:text-red-400 transition-colors cursor-pointer active:scale-90"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={16} />
                       </button>
                    </div>
                 </div>
@@ -319,7 +319,7 @@ export function FinanceView() {
                   </div>
                 </div>
 
-                <button type="submit" className="w-full bg-red-500 text-white font-black py-4 rounded-2xl shadow-lg uppercase tracking-[0.2em] text-[10px] cursor-pointer" id="btn-submit-expense">
+                <button type="submit" className="w-full bg-red-500 text-white font-black py-4 rounded-2xl shadow-lg uppercase tracking-[0.2em] text-[10px] cursor-pointer active:scale-95" id="btn-submit-expense">
                   Registrar Saída
                 </button>
               </motion.form>
@@ -342,7 +342,7 @@ export function FinanceView() {
                 <motion.div 
                   layout
                   key={f.id}
-                  className="p-5 flex justify-between items-center group"
+                  className="p-4 md:p-5 flex justify-between items-center group"
                 >
                   <div className="flex gap-4 items-center min-w-0">
                     <div className={cn(

@@ -64,16 +64,16 @@ export function VisionView() {
   return (
     <div className="space-y-8 max-w-6xl mx-auto px-1 md:px-0">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <p className="text-[11px] font-black text-emerald-600 uppercase tracking-[0.2em]">Neural Vision System</p>
-          <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase leading-none">
+          <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter uppercase leading-none">
             AI <span className="text-slate-400">Vision Scanner</span>
           </h2>
         </div>
         
-        <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl">
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-3 md:py-2 bg-white border border-slate-200 rounded-xl">
              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Gemini 1.5 Pro Active</span>
           </div>

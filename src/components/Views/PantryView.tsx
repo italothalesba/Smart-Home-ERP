@@ -295,7 +295,7 @@ export function PantryView() {
           </div>
         </div>
         
-        <div className="flex bg-white p-1.5 rounded-[20px] border border-slate-200 shadow-sm self-start">
+        <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm w-full md:w-auto">
           <button 
             onClick={() => setViewMode('catalog')}
             className={cn(
@@ -461,69 +461,78 @@ export function PantryView() {
                  <button onClick={() => setViewMode('catalog')} className="mt-4 text-emerald-600 text-[10px] font-black uppercase tracking-widest hover:underline cursor-pointer">Voltar ao Catálogo</button>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-separate border-spacing-y-3">
-                  <thead>
-                    <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">
-                      <th className="px-6 py-2">Produto</th>
-                      <th className="px-6 py-2">Marca/Detalhe</th>
-                      <th className="px-6 py-2">Preço Un.</th>
-                      <th className="px-6 py-2">Quantidade</th>
-                      <th className="px-6 py-2">Subtotal</th>
-                      <th className="px-6 py-2"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {marketItems.map((item, idx) => (
-                      <tr key={item.id || idx} className="bg-slate-50/50 hover:bg-slate-50 transition-colors overflow-hidden group">
-                        <td className="px-6 py-4 rounded-l-2xl">
-                          <span className="text-sm font-black text-slate-900">{item.name}</span>
-                        </td>
-                        <td className="px-6 py-4">
+              <div className="space-y-4">
+                {/* Desktop Header */}
+                <div className="hidden md:grid grid-cols-12 gap-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest pb-2">
+                  <div className="col-span-4">Produto</div>
+                  <div className="col-span-3">Marca/Detalhe</div>
+                  <div className="col-span-2">Preço Un.</div>
+                  <div className="col-span-2">Quantidade</div>
+                  <div className="col-span-1 text-right">Subtotal</div>
+                </div>
+
+                {marketItems.map((item, idx) => (
+                  <div key={item.id || idx} className="bg-slate-50 md:bg-transparent rounded-[24px] p-4 md:p-0 md:grid md:grid-cols-12 md:gap-4 items-center group border md:border-none border-slate-100">
+                    {/* Name */}
+                    <div className="col-span-4 mb-4 md:mb-0 md:px-6">
+                      <p className="text-[10px] md:hidden font-black text-slate-400 uppercase tracking-widest mb-1">Produto</p>
+                      <span className="text-sm font-black text-slate-900">{item.name}</span>
+                    </div>
+
+                    {/* Brand */}
+                    <div className="col-span-3 mb-4 md:mb-0">
+                      <p className="text-[10px] md:hidden font-black text-slate-400 uppercase tracking-widest mb-2">Marca/Detalhe</p>
+                      <input 
+                        placeholder="Marca ou tipo..."
+                        value={item.brand || ''}
+                        onChange={e => updateMarketItem(item.id, { brand: e.target.value })}
+                        className="bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500 w-full"
+                      />
+                    </div>
+
+                    {/* Price */}
+                    <div className="col-span-2 mb-4 md:mb-0">
+                       <p className="text-[10px] md:hidden font-black text-slate-400 uppercase tracking-widest mb-2">Preço Un.</p>
+                       <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-400">R$</span>
                           <input 
-                            placeholder="Marca ou tipo..."
-                            value={item.brand || ''}
-                            onChange={e => updateMarketItem(item.id, { brand: e.target.value })}
-                            className="bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500 w-full"
+                            type="number"
+                            step="0.01"
+                            value={item.price}
+                            onChange={e => updateMarketItem(item.id, { price: parseFloat(e.target.value) || 0 })}
+                            className="bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-black outline-none focus:ring-2 focus:ring-emerald-500 w-full"
                           />
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                             <span className="text-xs font-bold text-slate-400">R$</span>
-                             <input 
-                               type="number"
-                               step="0.01"
-                               value={item.price}
-                               onChange={e => updateMarketItem(item.id, { price: parseFloat(e.target.value) || 0 })}
-                               className="bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-black outline-none focus:ring-2 focus:ring-emerald-500 w-24"
-                             />
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <button onClick={() => updateMarketItem(item.id, { quantity: Math.max(0.1, (item.quantity || 0) - 1) })} className="w-8 h-8 bg-white border border-slate-200 rounded-lg flex items-center justify-center font-black text-slate-400 hover:text-slate-900 cursor-pointer">-</button>
-                            <input 
-                               type="number"
-                               step="0.1"
-                               value={item.quantity}
-                               onChange={e => updateMarketItem(item.id, { quantity: parseFloat(e.target.value) || 0 })}
-                               className="bg-white border border-slate-200 px-2 py-2 rounded-xl text-xs font-black outline-none focus:ring-2 focus:ring-emerald-500 w-16 text-center"
-                             />
-                            <button onClick={() => updateMarketItem(item.id, { quantity: (item.quantity || 0) + 1 })} className="w-8 h-8 bg-white border border-slate-200 rounded-lg flex items-center justify-center font-black text-slate-400 hover:text-slate-900 cursor-pointer">+</button>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm font-black text-emerald-600">
-                            R$ {((item.price || 0) * (item.quantity || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 rounded-r-2xl">
-                          <button onClick={() => removeMarketItem(item.id)} className="p-2 text-slate-200 hover:text-red-500 transition-colors cursor-pointer"><Trash2 size={16} /></button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                       </div>
+                    </div>
+
+                    {/* Quantity */}
+                    <div className="col-span-2 mb-6 md:mb-0">
+                      <p className="text-[10px] md:hidden font-black text-slate-400 uppercase tracking-widest mb-2">Quantidade</p>
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => updateMarketItem(item.id, { quantity: Math.max(0.1, (item.quantity || 0) - 1) })} className="w-10 h-10 md:w-8 md:h-8 bg-white border border-slate-200 rounded-lg flex items-center justify-center font-black text-slate-400 hover:text-slate-900 cursor-pointer active:scale-90">-</button>
+                        <input 
+                           type="number"
+                           step="0.1"
+                           value={item.quantity}
+                           onChange={e => updateMarketItem(item.id, { quantity: parseFloat(e.target.value) || 0 })}
+                           className="flex-1 md:flex-none bg-white border border-slate-200 px-2 py-2.5 rounded-xl text-xs font-black outline-none focus:ring-2 focus:ring-emerald-500 md:w-16 text-center"
+                         />
+                        <button onClick={() => updateMarketItem(item.id, { quantity: (item.quantity || 0) + 1 })} className="w-10 h-10 md:w-8 md:h-8 bg-white border border-slate-200 rounded-lg flex items-center justify-center font-black text-slate-400 hover:text-slate-900 cursor-pointer active:scale-90">+</button>
+                      </div>
+                    </div>
+
+                    {/* Total & Action */}
+                    <div className="col-span-1 flex items-center justify-between md:justify-end md:px-6 border-t md:border-none border-slate-100 pt-4 md:pt-0">
+                      <div className="text-right">
+                        <p className="text-[9px] md:hidden font-black text-slate-400 uppercase tracking-widest mb-0.5">Subtotal</p>
+                        <span className="text-sm font-black text-emerald-600">
+                          R$ {((item.price || 0) * (item.quantity || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <button onClick={() => removeMarketItem(item.id)} className="p-3 md:p-2 text-slate-300 hover:text-red-500 transition-colors cursor-pointer active:scale-90"><Trash2 size={18} className="md:w-4 md:h-4" /></button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

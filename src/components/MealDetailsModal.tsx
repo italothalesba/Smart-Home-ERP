@@ -171,11 +171,11 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
   const [isAddingNewPantryItem, setIsAddingNewPantryItem] = useState(false);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center md:p-4 bg-slate-900/60 backdrop-blur-sm">
       <motion.div 
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-white w-full max-w-xl rounded-[32px] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+        className="bg-white w-full max-w-xl md:rounded-[32px] overflow-hidden shadow-2xl flex flex-col h-full md:h-auto md:max-h-[90vh]"
       >
         <div className="p-6 bg-slate-900 text-white flex justify-between items-start">
           <div className="space-y-1">
