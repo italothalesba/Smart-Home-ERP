@@ -51,7 +51,7 @@ export function MealView() {
   const [isAdding, setIsAdding] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [shoppingList, setShoppingList] = useState<string[]>([]);
-  const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+  const [selectedMealId, setSelectedMealId] = useState<string | null>(null);
   const [form, setForm] = useState({
     day: 'Domingo',
     type: MealType.ALMOCO,
@@ -779,7 +779,7 @@ export function MealView() {
                             <h4 className="text-sm font-black text-slate-900 truncate">{meal.title}</h4>
                             <div className="flex items-center gap-3 mt-1.5">
                                <button 
-                                 onClick={() => setSelectedMeal(meal)}
+                                 onClick={() => setSelectedMealId(meal.id)}
                                  className="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-1.5 cursor-pointer"
                                >
                                  <Calculator size={10} /> Calculadora Técnica
@@ -889,11 +889,19 @@ export function MealView() {
       </div>
 
       <AnimatePresence>
-        {selectedMeal && (
-          <MealDetailsModal 
-            meal={selectedMeal} 
-            onClose={() => setSelectedMeal(null)} 
-           />
+        {selectedMealId && (
+          <React.Fragment>
+            {(() => {
+              const meal = meals.find(m => m.id === selectedMealId);
+              if (!meal) return null;
+              return (
+                <MealDetailsModal 
+                  meal={meal} 
+                  onClose={() => setSelectedMealId(null)} 
+                />
+              );
+            })()}
+          </React.Fragment>
         )}
       </AnimatePresence>
     </div>

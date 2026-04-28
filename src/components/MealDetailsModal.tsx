@@ -21,6 +21,8 @@ interface MealDetailsModalProps {
 export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
   const { update } = useFirestore<Meal>('meals');
   const { data: products, add: addProduct, update: updateProduct } = useFirestore<Product>('products');
+  const [localIngredients, setLocalIngredients] = useState<MealIngredient[]>([]);
+  const [amountStrings, setAmountStrings] = useState<Record<number, string>>({});
   const [newIngredient, setNewIngredient] = useState({
     name: '',
     amountPerPerson: '',
@@ -29,10 +31,10 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const peopleCount = meal.peopleCount || 3;
-  const ingredients = useMemo(() => {
+
+  // Initialize local ingredients from meal
+  React.useEffect(() => {
     let list = meal.structuredIngredients || [];
-    
-    // If no structured ingredients but we have the string list, try to hydrate
     if (list.length === 0 && meal.ingredients.length > 0) {
       list = meal.ingredients.map(name => ({
         name,
@@ -40,8 +42,15 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
         unit: 'un'
       }));
     }
-    return list;
-  }, [meal.structuredIngredients, meal.ingredients]);
+    setLocalIngredients(list);
+    
+    // Initialize map of strings
+    const strings: Record<number, string> = {};
+    list.forEach((ing, idx) => {
+      strings[idx] = ing.amountPerPerson.toString();
+    });
+    setAmountStrings(strings);
+  }, [meal.id, meal.structuredIngredients, meal.ingredients]);
 
   const handleAddIngredient = async () => {
     if (!newIngredient.name || !newIngredient.amountPerPerson) return;
@@ -69,22 +78,20 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
       if (docRef) productId = docRef.id;
     } else {
       productId = existingProduct.id;
-      // User requested: "automaticamente aumentar a quantidade na aba de estoque de acordo com a necessidade"
       const needed = amount * peopleCount;
       if (existingProduct.quantity < needed) {
         await updateProduct(existingProduct.id, { quantity: needed });
       }
     }
 
-    // Update existing or add new to structuredIngredients
-    const existingIdx = ingredients.findIndex(i => 
+    const existingIdx = localIngredients.findIndex(i => 
       (i.productId && i.productId === productId) || 
       i.name.toLowerCase() === ingredientName.toLowerCase()
     );
     let updatedIngredients;
     
     if (existingIdx > -1) {
-      updatedIngredients = [...ingredients];
+      updatedIngredients = [...localIngredients];
       updatedIngredients[existingIdx] = {
         ...updatedIngredients[existingIdx],
         productId,
@@ -92,7 +99,7 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
         unit: ingredientUnit
       };
     } else {
-      updatedIngredients = [...ingredients, {
+      updatedIngredients = [...localIngredients, {
         productId,
         name: ingredientName,
         amountPerPerson: amount,
@@ -100,16 +107,26 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
       }];
     }
     
+    setLocalIngredients(updatedIngredients);
     await update(meal.id, { structuredIngredients: updatedIngredients });
     setNewIngredient({ name: '', amountPerPerson: '', unit: '' });
     setShowSuggestions(false);
   };
 
-  const updateIngredientAmount = async (index: number, amount: number) => {
-    const updatedIngredients = [...ingredients];
+  const updateIngredientAmount = async (index: number, val: string) => {
+    // Update string state immediately for the input
+    setAmountStrings(prev => ({ ...prev, [index]: val }));
+    
+    const amount = parseFloat(val);
+    if (isNaN(amount)) return;
+
+    const updatedIngredients = [...localIngredients];
     const ing = updatedIngredients[index];
     updatedIngredients[index] = { ...ing, amountPerPerson: amount };
     
+    // Update local state for calculations
+    setLocalIngredients(updatedIngredients);
+
     // Sync with Pantry
     if (ing.productId) {
       const product = products.find(p => p.id === ing.productId);
@@ -125,10 +142,9 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
   };
 
   const removeIngredient = async (index: number) => {
-    const updatedIngredients = ingredients.filter((_, i) => i !== index);
-    // Also remove from the simple ingredients list for consistency if needed
+    const updatedIngredients = localIngredients.filter((_, i) => i !== index);
     const simpleIngredients = meal.ingredients.filter(name => 
-      name.toLowerCase() !== ingredients[index].name.toLowerCase()
+      name.toLowerCase() !== localIngredients[index].name.toLowerCase()
     );
     await update(meal.id, { 
       structuredIngredients: updatedIngredients,
@@ -315,7 +331,7 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
           <div className="space-y-4">
             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">Cálculo de Porções</h4>
             <div className="space-y-3">
-              {ingredients.map((ing, idx) => {
+              {localIngredients.map((ing, idx) => {
                 const total = ing.amountPerPerson * peopleCount;
                 const isSynced = products.some(p => p.name.toLowerCase() === ing.name.toLowerCase());
 
@@ -326,8 +342,8 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
                         <input 
                           type="number"
                           step="0.001"
-                          value={ing.amountPerPerson}
-                          onChange={(e) => updateIngredientAmount(idx, parseFloat(e.target.value) || 0)}
+                          value={amountStrings[idx] ?? ''}
+                          onChange={(e) => updateIngredientAmount(idx, e.target.value)}
                           className="w-full h-10 px-2 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-700 text-center outline-none focus:ring-2 focus:ring-emerald-500"
                         />
                         <p className="text-[8px] font-bold text-slate-400 uppercase text-center mt-1">{ing.unit} / pessoa</p>
@@ -360,7 +376,7 @@ export function MealDetailsModal({ meal, onClose }: MealDetailsModalProps) {
                   </div>
                 );
               })}
-              {ingredients.length === 0 && (
+              {localIngredients.length === 0 && (
                 <div className="py-12 border-2 border-dashed border-slate-100 rounded-3xl flex flex-col items-center justify-center gap-3">
                   <Package size={24} className="text-slate-200" />
                   <p className="text-[10px] font-bold text-slate-400 uppercase">Nenhum cálculo definido</p>

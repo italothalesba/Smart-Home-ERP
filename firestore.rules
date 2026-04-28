@@ -61,6 +61,13 @@ service cloud.firestore {
              (!data.keys().contains('budget') || data.budget is number);
     }
 
+    function isValidMarketItem(data) {
+      return data.keys().hasAll(['productId', 'name', 'quantity']) &&
+             data.productId is string &&
+             data.name is string &&
+             data.quantity is number;
+    }
+
     // --- Collection Matches ---
     match /users/{userId} {
       allow get: if isOwner(userId);
@@ -108,6 +115,14 @@ service cloud.firestore {
         allow get: if isOwner(userId);
         allow create: if isOwner(userId) && isValidId(petId);
         allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /market_items/{itemId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(itemId) && isValidMarketItem(incoming());
+        allow update: if isOwner(userId) && isValidMarketItem(incoming());
         allow delete: if isOwner(userId);
       }
     }
