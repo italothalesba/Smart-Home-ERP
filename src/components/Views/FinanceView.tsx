@@ -11,7 +11,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export function FinanceView() {
-  const { data: finances, add: addFinance, remove: removeFinance } = useFirestore<Finance>('finances');
+  const { data: finances, add: addFinance, remove: removeFinance, update: updateFinance } = useFirestore<Finance>('finances');
   const { data: incomes, add: addIncome, remove: removeIncome } = useFirestore<Income>('incomes');
   
   const [isAdding, setIsAdding] = useState(false);
@@ -22,6 +22,7 @@ export function FinanceView() {
     value: '',
     type: FinanceType.FIXA,
     totalInstallments: '1',
+    currentInstallment: '1',
     dueDate: new Date().toISOString().split('T')[0]
   });
 
@@ -40,7 +41,17 @@ export function FinanceView() {
     return acc + (Math.round(value * 100) / 100);
   }, 0);
 
-  const balance = Math.round((totalIncomes - totalMonthlyExpenditure) * 100) / 100;
+  const totalPaidExpenditure = finances.reduce((acc, f) => {
+    if (f.status !== FinanceStatus.PAGO) return acc;
+    const value = f.type === FinanceType.PARCELADO && f.totalInstallments 
+      ? f.value / f.totalInstallments 
+      : f.value;
+    return acc + (Math.round(value * 100) / 100);
+  }, 0);
+
+  const totalPendingExpenditure = Math.round((totalMonthlyExpenditure - totalPaidExpenditure) * 100) / 100;
+  const balance = Math.round((totalIncomes - totalPaidExpenditure) * 100) / 100;
+  const projectedBalance = Math.round((totalIncomes - totalMonthlyExpenditure) * 100) / 100;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,12 +66,12 @@ export function FinanceView() {
       value: Math.round(parseFloat(form.value) * 100) / 100,
       type: form.type,
       totalInstallments: form.type === FinanceType.PARCELADO ? parseInt(form.totalInstallments) : 1,
-      currentInstallment: 1,
+      currentInstallment: form.type === FinanceType.PARCELADO ? parseInt(form.currentInstallment) : 1,
       status: FinanceStatus.PENDENTE,
       dueDate: savedDueDate
     });
     setIsAdding(false);
-    setForm({ description: '', value: '', type: FinanceType.FIXA, totalInstallments: '1', dueDate: '' });
+    setForm({ description: '', value: '', type: FinanceType.FIXA, totalInstallments: '1', currentInstallment: '1', dueDate: '' });
   };
 
   const handleIncomeSubmit = (e: React.FormEvent) => {
@@ -72,6 +83,12 @@ export function FinanceView() {
     });
     setIsAddingIncome(false);
     setIncomeForm({ description: '', value: '', type: 'fixo' });
+  };
+
+  const toggleStatus = async (id: string, currentStatus: FinanceStatus) => {
+    await updateFinance(id, {
+      status: currentStatus === FinanceStatus.PAGO ? FinanceStatus.PENDENTE : FinanceStatus.PAGO
+    });
   };
 
   const getSortDate = (f: Finance) => {
@@ -90,20 +107,22 @@ export function FinanceView() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         <div className="bg-slate-900 text-white rounded-[32px] p-6 md:p-8 shadow-xl relative overflow-hidden group">
           <div className="absolute right-0 top-0 w-24 h-24 bg-emerald-500/20 rounded-full blur-2xl -mr-8 -mt-8" />
-          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-2 md:mb-4">Saldo Previsto</p>
+          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-2 md:mb-4">Saldo Disponível</p>
           <div className="flex items-baseline gap-2">
             <h2 className="text-3xl md:text-4xl font-black tracking-tighter">
               R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </h2>
           </div>
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2">Patrimônio em circulação</p>
+          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2 flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Previsto: R$ {projectedBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </p>
         </div>
 
         <div className="bg-white rounded-[32px] p-6 md:p-8 border border-slate-200 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Ganhos Totais</p>
-              <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter italic">
+              <h3 className="text-xl md:text-2xl font-black text-emerald-600 tracking-tighter italic">
                 R$ {totalIncomes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </h3>
             </div>
@@ -122,9 +141,9 @@ export function FinanceView() {
         <div className="bg-white rounded-[32px] p-6 md:p-8 border border-slate-200 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Impacto Mensal</p>
-              <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter italic">
-                R$ {totalMonthlyExpenditure.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Pendente p/ Pagar</p>
+              <h3 className="text-xl md:text-2xl font-black text-red-500 tracking-tighter italic">
+                R$ {totalPendingExpenditure.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </h3>
             </div>
             <div className="w-10 h-10 bg-red-50 rounded-2xl flex items-center justify-center text-red-500">
@@ -294,7 +313,19 @@ export function FinanceView() {
                 <div className="grid grid-cols-2 gap-4">
                   {form.type === FinanceType.PARCELADO && (
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Parcelas</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Parcela Atual</label>
+                      <input 
+                        type="number"
+                        placeholder="Ex: 5"
+                        value={form.currentInstallment}
+                        onChange={e => setForm({...form, currentInstallment: e.target.value})}
+                        className="w-full px-5 py-3.5 border border-slate-100 bg-slate-50 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                      />
+                    </div>
+                  )}
+                  {form.type === FinanceType.PARCELADO && (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Total de Parcelas</label>
                       <input 
                         type="number"
                         placeholder="Qtd"
@@ -304,7 +335,10 @@ export function FinanceView() {
                       />
                     </div>
                   )}
-                  <div className={cn("space-y-1.5", form.type !== FinanceType.PARCELADO && "col-span-2")}>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">
                       {form.type === FinanceType.FIXA ? "Vencimento (Dia)" : "Vencimento (Data)"}
                     </label>
@@ -342,9 +376,23 @@ export function FinanceView() {
                 <motion.div 
                   layout
                   key={f.id}
-                  className="p-4 md:p-5 flex justify-between items-center group"
+                  className={cn(
+                    "p-4 md:p-5 flex justify-between items-center group transition-opacity",
+                    f.status === FinanceStatus.PAGO && "opacity-50"
+                  )}
                 >
                   <div className="flex gap-4 items-center min-w-0">
+                    <button 
+                      onClick={() => toggleStatus(f.id, f.status)}
+                      className={cn(
+                        "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all cursor-pointer",
+                        f.status === FinanceStatus.PAGO 
+                          ? "bg-emerald-500 border-emerald-500 text-white" 
+                          : "border-slate-200 hover:border-emerald-500"
+                      )}
+                    >
+                      {f.status === FinanceStatus.PAGO && <div className="w-2 h-2 bg-white rounded-full" />}
+                    </button>
                     <div className={cn(
                       "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 border border-white shadow-sm",
                       f.type === FinanceType.FIXA ? "bg-slate-900 text-white" :
@@ -352,21 +400,34 @@ export function FinanceView() {
                     )}>
                       {f.type[0].toUpperCase()}
                     </div>
-                    <div className="min-w-0">
-                      <h4 className="text-sm font-black text-slate-900 truncate">{f.description}</h4>
+                    <div className="min-w-0 text-left">
+                      <h4 className={cn(
+                        "text-sm font-black text-slate-900 truncate",
+                        f.status === FinanceStatus.PAGO && "line-through text-slate-400"
+                      )}>{f.description}</h4>
                       <div className="flex items-center gap-2 text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">
                         <span className="flex items-center gap-1">
                           <Calendar size={10} /> 
                           {f.type === FinanceType.FIXA ? `Todo dia ${f.dueDate}` : new Date(f.dueDate).toLocaleDateString()}
                         </span>
-                        {f.type === FinanceType.PARCELADO && <span className="bg-amber-100 text-amber-700 px-1.5 rounded-md">Parcela {f.currentInstallment}/{f.totalInstallments}</span>}
+                        {f.type === FinanceType.PARCELADO && (
+                          <span className="bg-amber-100 text-amber-700 px-1.5 rounded-md">
+                            Parcela {f.currentInstallment}/{f.totalInstallments}
+                          </span>
+                        )}
+                        {f.status === FinanceStatus.PAGO && (
+                          <span className="bg-emerald-100 text-emerald-700 px-1.5 rounded-md">PAGO</span>
+                        )}
                       </div>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-4">
                     <div className="text-right shrink-0">
-                      <p className="text-base font-black text-slate-900 tracking-tighter italic">
+                      <p className={cn(
+                        "text-base font-black tracking-tighter italic",
+                        f.status === FinanceStatus.PAGO ? "text-slate-400" : "text-slate-900"
+                      )}>
                         R$ {(() => {
                           const val = f.type === FinanceType.PARCELADO ? f.value / (f.totalInstallments || 1) : f.value;
                           return (Math.round(val * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
@@ -375,7 +436,7 @@ export function FinanceView() {
                     </div>
                     <button 
                       onClick={() => removeFinance(f.id)} 
-                      className="w-10 h-10 flex items-center justify-center text-slate-200 cursor-pointer"
+                      className="w-10 h-10 flex items-center justify-center text-slate-200 hover:text-red-500 cursor-pointer active:scale-95"
                     >
                       <Trash2 size={16} />
                     </button>
