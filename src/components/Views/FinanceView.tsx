@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Finance, FinanceType, FinanceStatus, Income } from '../../types';
 import { useFirestore } from '../../hooks/useFirestore';
-import { Plus, Trash2, Calendar, CreditCard, Wallet, TrendingUp, ArrowDownCircle, ArrowUpCircle, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, Calendar, CreditCard, Wallet, TrendingUp, ArrowDownCircle, ArrowUpCircle, ChevronLeft, ChevronRight, RotateCcw, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -15,6 +15,7 @@ export function FinanceView() {
   const { data: incomes, add: addIncome, remove: removeIncome } = useFirestore<Income>('incomes');
   
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [isAddingIncome, setIsAddingIncome] = useState(false);
   
@@ -168,11 +169,15 @@ export function FinanceView() {
   const getSortDate = (f: Finance) => {
     if (f.type === FinanceType.FIXA) {
       const day = parseInt(f.dueDate);
-      const date = new Date();
-      date.setDate(day);
+      const date = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
       return date.getTime();
     }
-    return new Date(f.dueDate).getTime();
+    // For installments, we might want to sort by the original day of the month
+    const originalDate = new Date(f.dueDate);
+    const lastDayOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();
+    const targetDay = Math.min(originalDate.getDate(), lastDayOfMonth);
+    const simulatedDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), targetDay);
+    return simulatedDate.getTime();
   };
 
   const overdueFinances = finances.filter(f => {
@@ -190,47 +195,132 @@ export function FinanceView() {
   return (
     <div className="space-y-8 max-w-5xl mx-auto px-1 md:px-0">
       {/* Month Navigation */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 md:p-6 rounded-[32px] border border-slate-100 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white shadow-lg overflow-hidden relative">
-             <Calendar size={20} className="relative z-10" />
-             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50" />
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 md:p-6 rounded-[32px] border border-slate-100 shadow-sm relative z-50">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white shadow-lg overflow-hidden relative">
+               <Calendar size={20} className="relative z-10" />
+               <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50" />
+            </div>
+            <div className="relative">
+              <button 
+                onClick={() => setShowMonthPicker(!showMonthPicker)}
+                className="flex flex-col items-start cursor-pointer hover:bg-slate-50 p-2 -m-2 rounded-2xl transition-all active:scale-95"
+              >
+                <h2 className="text-xl font-black text-slate-900 tracking-tighter capitalize flex items-center gap-2">
+                  {selectedDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
+                  <ChevronDown size={16} className={cn("transition-transform duration-300", showMonthPicker && "rotate-180")} />
+                </h2>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Visão Mensal</p>
+              </button>
+
+              <AnimatePresence>
+                {showMonthPicker && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute left-0 top-full mt-4 w-64 bg-white rounded-3xl shadow-2xl border border-slate-100 p-4 z-50 grid grid-cols-3 gap-2"
+                  >
+                    {Array.from({ length: 12 }).map((_, i) => {
+                      const date = new Date(selectedDate.getFullYear(), i, 1);
+                      const isSelected = selectedDate.getMonth() === i;
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            setSelectedDate(date);
+                            setShowMonthPicker(false);
+                          }}
+                          className={cn(
+                            "py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                            isSelected 
+                              ? "bg-slate-900 text-white shadow-lg" 
+                              : "hover:bg-slate-50 text-slate-600"
+                          )}
+                        >
+                          {date.toLocaleString('pt-BR', { month: 'short' }).replace('.', '')}
+                        </button>
+                      );
+                    })}
+                    <div className="col-span-3 h-px bg-slate-100 my-2" />
+                    <div className="col-span-3 flex justify-between items-center px-1">
+                      <button 
+                        onClick={() => setSelectedDate(new Date(selectedDate.getFullYear() - 1, selectedDate.getMonth()))}
+                        className="p-2 hover:bg-slate-50 rounded-lg text-slate-400"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                      <span className="text-sm font-black text-slate-900">{selectedDate.getFullYear()}</span>
+                      <button 
+                        onClick={() => setSelectedDate(new Date(selectedDate.getFullYear() + 1, selectedDate.getMonth()))}
+                        className="p-2 hover:bg-slate-50 rounded-lg text-slate-400"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-black text-slate-900 tracking-tighter capitalize">
-              {selectedDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
-            </h2>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Visão Mensal</p>
+
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={prevMonth}
+              className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-100 hover:bg-slate-50 transition-all cursor-pointer active:scale-95"
+            >
+              <ChevronLeft size={18} className="text-slate-600" />
+            </button>
+            
+            <button 
+              onClick={resetToToday}
+              className={cn(
+                "px-4 h-10 flex items-center gap-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer active:scale-95",
+                isSameMonth(selectedDate, new Date()) 
+                  ? "bg-slate-100 text-slate-400 cursor-not-allowed" 
+                  : "bg-slate-900 text-white shadow-md hover:-translate-y-0.5"
+              )}
+              disabled={isSameMonth(selectedDate, new Date())}
+            >
+              <RotateCcw size={14} /> Hoje
+            </button>
+
+            <button 
+              onClick={nextMonth}
+              className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-100 hover:bg-slate-50 transition-all cursor-pointer active:scale-95"
+            >
+              <ChevronRight size={18} className="text-slate-600" />
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={prevMonth}
-            className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-100 hover:bg-slate-50 transition-all cursor-pointer active:scale-95"
-          >
-            <ChevronLeft size={18} className="text-slate-600" />
-          </button>
-          
-          <button 
-            onClick={resetToToday}
-            className={cn(
-              "px-4 h-10 flex items-center gap-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer active:scale-95",
-              isSameMonth(selectedDate, new Date()) 
-                ? "bg-slate-100 text-slate-400 cursor-not-allowed" 
-                : "bg-slate-900 text-white shadow-md hover:-translate-y-0.5"
-            )}
-            disabled={isSameMonth(selectedDate, new Date())}
-          >
-            <RotateCcw size={14} /> Hoje
-          </button>
-
-          <button 
-            onClick={nextMonth}
-            className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-100 hover:bg-slate-50 transition-all cursor-pointer active:scale-95"
-          >
-            <ChevronRight size={18} className="text-slate-600" />
-          </button>
+        {/* Quick Month Strip */}
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none no-scrollbar">
+          {Array.from({ length: 7 }).map((_, i) => {
+            const date = new Date();
+            date.setMonth(date.getMonth() + i - 3); // Current month is at center
+            const isSelected = isSameMonth(date, selectedDate);
+            return (
+              <button
+                key={i}
+                onClick={() => setSelectedDate(date)}
+                className={cn(
+                  "flex flex-col items-center justify-center min-w-[70px] h-16 rounded-2xl transition-all cursor-pointer active:scale-90",
+                  isSelected 
+                    ? "bg-emerald-500 text-white shadow-lg ring-4 ring-emerald-100 scale-105" 
+                    : "bg-white text-slate-400 border border-slate-100 hover:border-emerald-200"
+                )}
+              >
+                <span className="text-[10px] font-black uppercase tracking-tighter">
+                  {date.toLocaleString('pt-BR', { month: 'short' }).replace('.', '')}
+                </span>
+                <span className="text-xs font-black">
+                  {date.getFullYear()}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
