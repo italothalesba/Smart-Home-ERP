@@ -37,7 +37,9 @@ service cloud.firestore {
              data.description is string && data.description.size() > 0 && data.description.size() <= 200 &&
              data.type in ['fixa', 'parcelado', 'extra', 'renegociacao'] &&
              data.value is number &&
-             (!data.keys().contains('status') || data.status in ['pendente', 'pago']);
+             (!data.keys().contains('status') || data.status in ['pendente', 'pago']) &&
+             (!data.keys().contains('startDate') || data.startDate is string) &&
+             (!data.keys().contains('endDate') || data.endDate is string);
     }
 
     function isValidIncome(data) {
@@ -90,7 +92,7 @@ service cloud.firestore {
         allow get: if isOwner(userId);
         allow create: if isOwner(userId) && isValidId(financeId) && isValidFinance(incoming());
         allow update: if isOwner(userId) && isValidFinance(incoming()) && 
-                      incoming().diff(existing()).affectedKeys().hasOnly(['description', 'value', 'type', 'totalInstallments', 'currentInstallment', 'status', 'dueDate', 'updatedAt']);
+                      incoming().diff(existing()).affectedKeys().hasOnly(['description', 'value', 'type', 'totalInstallments', 'currentInstallment', 'status', 'dueDate', 'updatedAt', 'startDate', 'endDate']);
         allow delete: if isOwner(userId);
       }
 

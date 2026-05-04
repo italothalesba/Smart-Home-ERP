@@ -67,6 +67,8 @@ export interface Finance {
   displayInstallment?: number;
   status: FinanceStatus;
   dueDate: string;
+  startDate?: string;
+  endDate?: string;
   ownerId: string;
 }
 

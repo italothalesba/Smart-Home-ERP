@@ -17,6 +17,8 @@ export function FinanceView() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [isAddingIncome, setIsAddingIncome] = useState(false);
   
   const [form, setForm] = useState({
@@ -25,7 +27,9 @@ export function FinanceView() {
     type: FinanceType.FIXA,
     totalInstallments: '1',
     currentInstallment: '1',
-    dueDate: new Date().toISOString().split('T')[0]
+    dueDate: new Date().toISOString().split('T')[0],
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: ''
   });
 
   const [incomeForm, setIncomeForm] = useState({
@@ -127,7 +131,7 @@ export function FinanceView() {
   const balance = Math.round((totalIncomes - totalPaidExpenditure) * 100) / 100;
   const projectedBalance = Math.round((totalIncomes - totalMonthlyExpenditure) * 100) / 100;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     let savedDueDate = form.dueDate;
@@ -135,17 +139,56 @@ export function FinanceView() {
       savedDueDate = new Date(form.dueDate).toISOString();
     }
 
-    addFinance({
+    const financeData: any = {
       description: form.description,
       value: Math.round(parseFloat(form.value) * 100) / 100,
       type: form.type,
       totalInstallments: (form.type === FinanceType.PARCELADO || form.type === FinanceType.RENEGOCIACAO) ? parseInt(form.totalInstallments) : 1,
       currentInstallment: (form.type === FinanceType.PARCELADO || form.type === FinanceType.RENEGOCIACAO) ? parseInt(form.currentInstallment) : 1,
-      status: FinanceStatus.PENDENTE,
-      dueDate: savedDueDate
-    });
+      dueDate: savedDueDate,
+      startDate: form.startDate,
+    };
+
+    if (form.endDate) {
+      financeData.endDate = form.endDate;
+    }
+
+    if (isEditing && editingId) {
+      await updateFinance(editingId, financeData);
+    } else {
+      financeData.status = FinanceStatus.PENDENTE;
+      await addFinance(financeData);
+    }
+
     setIsAdding(false);
-    setForm({ description: '', value: '', type: FinanceType.FIXA, totalInstallments: '1', currentInstallment: '1', dueDate: '' });
+    setIsEditing(false);
+    setEditingId(null);
+    setForm({ 
+      description: '', 
+      value: '', 
+      type: FinanceType.FIXA, 
+      totalInstallments: '1', 
+      currentInstallment: '1', 
+      dueDate: new Date().toISOString().split('T')[0],
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: ''
+    });
+  };
+
+  const handleEdit = (f: Finance) => {
+    setForm({
+      description: f.description,
+      value: f.value.toString(),
+      type: f.type,
+      totalInstallments: (f.totalInstallments || 1).toString(),
+      currentInstallment: (f.currentInstallment || 1).toString(),
+      dueDate: f.dueDate.includes('T') ? f.dueDate.split('T')[0] : f.dueDate,
+      startDate: f.startDate || new Date().toISOString().split('T')[0],
+      endDate: f.endDate || ''
+    });
+    setEditingId(f.id);
+    setIsEditing(true);
+    setIsAdding(true);
   };
 
   const handleIncomeSubmit = (e: React.FormEvent) => {
@@ -509,7 +552,9 @@ export function FinanceView() {
                 onSubmit={handleSubmit}
                 className="bg-white rounded-[32px] p-8 border border-slate-200 space-y-5 shadow-xl overflow-hidden"
               >
-                <p className="text-[11px] font-black text-red-500 uppercase tracking-widest mb-2 italic">Novo Desembolso</p>
+                <p className="text-[11px] font-black text-red-500 uppercase tracking-widest mb-2 italic">
+                  {isEditing ? 'Editar Registro' : 'Novo Desembolso'}
+                </p>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Identificação</label>
                   <input 
@@ -523,7 +568,7 @@ export function FinanceView() {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Preço</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Preço Total</label>
                     <input 
                       required
                       type="number"
@@ -578,10 +623,10 @@ export function FinanceView() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">
-                      {form.type === FinanceType.FIXA ? "Vencimento (Dia)" : "Vencimento (Data)"}
+                      {form.type === FinanceType.FIXA ? "Vencimento (Dia)" : "Próximo Vencimento"}
                     </label>
                     <input 
                       type={form.type === FinanceType.FIXA ? "number" : "date"}
@@ -592,11 +637,45 @@ export function FinanceView() {
                       className="w-full px-5 py-3.5 border border-slate-100 bg-slate-50 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
                     />
                   </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Início do Contrato</label>
+                    <input 
+                      type="date"
+                      value={form.startDate}
+                      onChange={e => setForm({...form, startDate: e.target.value})}
+                      className="w-full px-5 py-3.5 border border-slate-100 bg-slate-50 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Fim (Opcional)</label>
+                    <input 
+                      type="date"
+                      value={form.endDate}
+                      onChange={e => setForm({...form, endDate: e.target.value})}
+                      className="w-full px-5 py-3.5 border border-slate-100 bg-slate-50 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                    />
+                  </div>
                 </div>
 
-                <button type="submit" className="w-full bg-red-500 text-white font-black py-4 rounded-2xl shadow-lg uppercase tracking-[0.2em] text-[10px] cursor-pointer active:scale-95" id="btn-submit-expense">
-                  Registrar Saída
-                </button>
+                <div className="flex gap-4">
+                  <button type="submit" className="flex-1 bg-red-500 text-white font-black py-4 rounded-2xl shadow-lg uppercase tracking-[0.2em] text-[10px] cursor-pointer active:scale-95" id="btn-submit-expense">
+                    {isEditing ? 'Salvar Alterações' : 'Registrar Saída'}
+                  </button>
+                  {isEditing && (
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setIsAdding(false);
+                        setIsEditing(false);
+                        setEditingId(null);
+                        setForm({ description: '', value: '', type: FinanceType.FIXA, totalInstallments: '1', currentInstallment: '1', dueDate: new Date().toISOString().split('T')[0], startDate: new Date().toISOString().split('T')[0], endDate: '' });
+                      }}
+                      className="px-6 border border-slate-200 text-slate-400 font-black rounded-2xl uppercase tracking-[0.2em] text-[10px] cursor-pointer active:scale-95"
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                </div>
               </motion.form>
             )}
           </AnimatePresence>
@@ -689,17 +768,27 @@ export function FinanceView() {
                         "text-sm font-black text-slate-900 truncate",
                         f.status === FinanceStatus.PAGO && "line-through text-slate-400"
                       )}>{f.description}</h4>
-                      <div className="flex items-center gap-2 text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">
+                      <div className="flex items-center flex-wrap gap-2 text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">
                         <span className="flex items-center gap-1">
                           <Calendar size={10} /> 
                           {f.type === FinanceType.FIXA ? `Todo dia ${f.dueDate}` : new Date(f.dueDate).toLocaleDateString()}
                         </span>
-                            {(f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO) && (
+                        {(f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO) && (
                           <span className={cn(
                             "px-1.5 rounded-md",
                             f.type === FinanceType.RENEGOCIACAO ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
                           )}>
                             {f.type === FinanceType.RENEGOCIACAO ? "Negociação" : "Parcela"} {f.displayInstallment || f.currentInstallment}/{f.totalInstallments}
+                          </span>
+                        )}
+                        {f.startDate && (
+                          <span className="bg-slate-100 text-slate-500 px-1.5 rounded-md flex items-center gap-1">
+                             INI: {new Date(f.startDate).toLocaleDateString()}
+                          </span>
+                        )}
+                        {f.endDate && (
+                          <span className="bg-slate-100 text-slate-500 px-1.5 rounded-md flex items-center gap-1">
+                             FIM: {new Date(f.endDate).toLocaleDateString()}
                           </span>
                         )}
                         {f.status === FinanceStatus.PAGO && (
@@ -709,26 +798,34 @@ export function FinanceView() {
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-4">
-                    <div className="text-right shrink-0">
-                      <p className={cn(
-                        "text-base font-black tracking-tighter italic",
-                        f.status === FinanceStatus.PAGO ? "text-slate-400" : "text-slate-900"
-                      )}>
-                        R$ {(() => {
-                          const isInstallmentBased = f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO;
-                          const val = isInstallmentBased ? f.value / (f.totalInstallments || 1) : f.value;
-                          return (Math.round(val * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-                        })()}
-                      </p>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right shrink-0">
+                        <p className={cn(
+                          "text-base font-black tracking-tighter italic",
+                          f.status === FinanceStatus.PAGO ? "text-slate-400" : "text-slate-900"
+                        )}>
+                          R$ {(() => {
+                            const isInstallmentBased = f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO;
+                            const val = isInstallmentBased ? f.value / (f.totalInstallments || 1) : f.value;
+                            return (Math.round(val * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                          })()}
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <button 
+                          onClick={() => handleEdit(f)}
+                          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-emerald-500 cursor-pointer active:scale-95"
+                        >
+                          <Plus size={14} className="rotate-45" />
+                        </button>
+                        <button 
+                          onClick={() => removeFinance(f.id)} 
+                          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 cursor-pointer active:scale-95"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
-                    <button 
-                      onClick={() => removeFinance(f.id)} 
-                      className="w-10 h-10 flex items-center justify-center text-slate-200 hover:text-red-500 cursor-pointer active:scale-95"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
                 </motion.div>
               ))}
             </div>
