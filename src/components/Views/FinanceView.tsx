@@ -51,6 +51,18 @@ export function FinanceView() {
     return acc + (Math.round(value * 100) / 100);
   }, 0);
 
+  // Grouped totals for monthly tracking
+  const totalsByType = finances.reduce((acc, f) => {
+    const isInstallmentBased = f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO;
+    const value = isInstallmentBased && f.totalInstallments 
+      ? f.value / f.totalInstallments 
+      : f.value;
+    
+    if (!acc[f.type]) acc[f.type] = 0;
+    acc[f.type] += Math.round(value * 100) / 100;
+    return acc;
+  }, {} as Record<FinanceType, number>);
+
   const totalPendingExpenditure = Math.round((totalMonthlyExpenditure - totalPaidExpenditure) * 100) / 100;
   const balance = Math.round((totalIncomes - totalPaidExpenditure) * 100) / 100;
   const projectedBalance = Math.round((totalIncomes - totalMonthlyExpenditure) * 100) / 100;
@@ -159,6 +171,23 @@ export function FinanceView() {
             <Plus size={14} /> {isAdding ? "Fechar" : "Nova Despesa"}
           </button>
         </div>
+      </div>
+
+      {/* Monthly Breakdown by Type */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: 'Fixas', type: FinanceType.FIXA, color: 'text-slate-900', bg: 'bg-slate-50' },
+          { label: 'Parceladas', type: FinanceType.PARCELADO, color: 'text-amber-600', bg: 'bg-amber-50' },
+          { label: 'Extras', type: FinanceType.EXTRA, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { label: 'Renegociadas', type: FinanceType.RENEGOCIACAO, color: 'text-red-700', bg: 'bg-red-50' },
+        ].map((item) => (
+          <div key={item.type} className={cn("p-4 rounded-2xl border border-slate-100 flex flex-col gap-1", item.bg)}>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.label}</p>
+            <p className={cn("text-lg font-black tracking-tighter", item.color)}>
+              R$ {(totalsByType[item.type] || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </p>
+          </div>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
