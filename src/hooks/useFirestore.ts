@@ -59,7 +59,8 @@ export function useFirestore<T>(collectionName: string) {
     try {
       await updateDoc(doc(db, `users/${userId}/${collectionName}`, id), {
         ...item,
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        ownerId: userId
       });
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, collectionName);
