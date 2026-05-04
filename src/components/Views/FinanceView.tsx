@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Finance, FinanceType, FinanceStatus, Income } from '../../types';
 import { useFirestore } from '../../hooks/useFirestore';
-import { Plus, Trash2, Calendar, CreditCard, Wallet, TrendingUp, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { Plus, Trash2, Calendar, CreditCard, Wallet, TrendingUp, ArrowDownCircle, ArrowUpCircle, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -14,6 +14,7 @@ export function FinanceView() {
   const { data: finances, add: addFinance, remove: removeFinance, update: updateFinance } = useFirestore<Finance>('finances');
   const { data: incomes, add: addIncome, remove: removeIncome } = useFirestore<Income>('incomes');
   
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [isAdding, setIsAdding] = useState(false);
   const [isAddingIncome, setIsAddingIncome] = useState(false);
   
@@ -32,9 +33,67 @@ export function FinanceView() {
     type: 'fixo' as 'fixo' | 'volatil'
   });
 
-  const totalIncomes = incomes.reduce((acc, i) => acc + i.value, 0);
+  // Month navigation helpers
+  const nextMonth = () => {
+    const next = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1);
+    setSelectedDate(next);
+  };
+
+  const prevMonth = () => {
+    const prev = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1);
+    setSelectedDate(prev);
+  };
+
+  const resetToToday = () => setSelectedDate(new Date());
+
+  const isSameMonth = (d1: Date, d2: Date) => 
+    d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth();
+
+  // Smart Filtering Logic
+  const filteredFinances = finances.filter(f => {
+    if (f.type === FinanceType.FIXA) return true; // Fixed expenses are always visible
+    
+    const financeDate = new Date(f.dueDate);
+    
+    if (f.type === FinanceType.EXTRA) {
+      return isSameMonth(financeDate, selectedDate);
+    }
+
+    if (f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO) {
+      const startMonth = financeDate.getFullYear() * 12 + financeDate.getMonth();
+      const currentMonth = selectedDate.getFullYear() * 12 + selectedDate.getMonth();
+      const diff = currentMonth - startMonth;
+      
+      const installmentAtMonth = (f.currentInstallment || 1) + diff;
+      return installmentAtMonth >= 1 && installmentAtMonth <= (f.totalInstallments || 1);
+    }
+
+    return false;
+  });
+
+  // Calculate dynamic properties for filtered items (like current installment number)
+  const processedFinances = filteredFinances.map(f => {
+    if (f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO) {
+      const financeDate = new Date(f.dueDate);
+      const startMonth = financeDate.getFullYear() * 12 + financeDate.getMonth();
+      const currentMonth = selectedDate.getFullYear() * 12 + selectedDate.getMonth();
+      const diff = currentMonth - startMonth;
+      const calculatedInstallment = (f.currentInstallment || 1) + diff;
+      
+      return { ...f, displayInstallment: calculatedInstallment };
+    }
+    return f;
+  });
+
+  const filteredIncomes = incomes.filter(i => {
+    if (i.type === 'fixo') return true;
+    if (!i.date) return true; // Legacy items
+    return isSameMonth(new Date(i.date), selectedDate);
+  });
+
+  const totalIncomes = filteredIncomes.reduce((acc, i) => acc + i.value, 0);
   
-  const totalMonthlyExpenditure = finances.reduce((acc, f) => {
+  const totalMonthlyExpenditure = processedFinances.reduce((acc, f) => {
     const isInstallmentBased = f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO;
     const value = isInstallmentBased && f.totalInstallments 
       ? f.value / f.totalInstallments 
@@ -42,7 +101,7 @@ export function FinanceView() {
     return acc + (Math.round(value * 100) / 100);
   }, 0);
 
-  const totalPaidExpenditure = finances.reduce((acc, f) => {
+  const totalPaidExpenditure = processedFinances.reduce((acc, f) => {
     if (f.status !== FinanceStatus.PAGO) return acc;
     const isInstallmentBased = f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO;
     const value = isInstallmentBased && f.totalInstallments 
@@ -52,7 +111,7 @@ export function FinanceView() {
   }, 0);
 
   // Grouped totals for monthly tracking
-  const totalsByType = finances.reduce((acc, f) => {
+  const totalsByType = processedFinances.reduce((acc, f) => {
     const isInstallmentBased = f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO;
     const value = isInstallmentBased && f.totalInstallments 
       ? f.value / f.totalInstallments 
@@ -93,7 +152,8 @@ export function FinanceView() {
     addIncome({
       description: incomeForm.description,
       value: Math.round(parseFloat(incomeForm.value) * 100) / 100,
-      type: incomeForm.type
+      type: incomeForm.type,
+      date: new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1).toISOString()
     });
     setIsAddingIncome(false);
     setIncomeForm({ description: '', value: '', type: 'fixo' });
@@ -115,8 +175,65 @@ export function FinanceView() {
     return new Date(f.dueDate).getTime();
   };
 
+  const overdueFinances = finances.filter(f => {
+    if (f.status === FinanceStatus.PAGO) return false;
+    
+    if (f.type === FinanceType.FIXA) return false;
+    
+    const financeDate = new Date(f.dueDate);
+    const selectedMonthStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+    
+    // Check if it belongs to a month BEFORE the selected month
+    return financeDate < selectedMonthStart;
+  });
+
   return (
     <div className="space-y-8 max-w-5xl mx-auto px-1 md:px-0">
+      {/* Month Navigation */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 md:p-6 rounded-[32px] border border-slate-100 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white shadow-lg overflow-hidden relative">
+             <Calendar size={20} className="relative z-10" />
+             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50" />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-slate-900 tracking-tighter capitalize">
+              {selectedDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
+            </h2>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Visão Mensal</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={prevMonth}
+            className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-100 hover:bg-slate-50 transition-all cursor-pointer active:scale-95"
+          >
+            <ChevronLeft size={18} className="text-slate-600" />
+          </button>
+          
+          <button 
+            onClick={resetToToday}
+            className={cn(
+              "px-4 h-10 flex items-center gap-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer active:scale-95",
+              isSameMonth(selectedDate, new Date()) 
+                ? "bg-slate-100 text-slate-400 cursor-not-allowed" 
+                : "bg-slate-900 text-white shadow-md hover:-translate-y-0.5"
+            )}
+            disabled={isSameMonth(selectedDate, new Date())}
+          >
+            <RotateCcw size={14} /> Hoje
+          </button>
+
+          <button 
+            onClick={nextMonth}
+            className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-100 hover:bg-slate-50 transition-all cursor-pointer active:scale-95"
+          >
+            <ChevronRight size={18} className="text-slate-600" />
+          </button>
+        </div>
+      </div>
+
       {/* Header with balance summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         <div className="bg-slate-900 text-white rounded-[32px] p-6 md:p-8 shadow-xl relative overflow-hidden group">
@@ -254,13 +371,13 @@ export function FinanceView() {
             </div>
             
             <div className="divide-y divide-slate-100">
-              {incomes.length === 0 && (
+              {filteredIncomes.length === 0 && (
                 <div className="py-20 text-center px-12">
                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">Nenhuma entrada registrada</p>
                 </div>
               )}
               
-              {incomes.map((i) => (
+              {filteredIncomes.map((i) => (
                 <div key={i.id} className="p-4 md:p-5 flex justify-between items-center group">
                    <div className="flex gap-4 items-center min-w-0">
                      <div className={cn(
@@ -400,13 +517,55 @@ export function FinanceView() {
             </div>
             
             <div className="divide-y divide-slate-100">
-              {finances.length === 0 && (
+              {processedFinances.length === 0 && overdueFinances.length === 0 && (
                 <div className="py-20 text-center px-12">
                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">Tudo em ordem</p>
                 </div>
               )}
+
+              {/* Overdue Section */}
+              {overdueFinances.length > 0 && (
+                <div className="bg-red-50/50">
+                  <div className="px-5 py-3 border-b border-red-100 flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                    <span className="text-[9px] font-black text-red-600 uppercase tracking-[0.2em]">Pendências de Meses Anteriores</span>
+                  </div>
+                  {overdueFinances.map((f) => (
+                    <motion.div 
+                      layout
+                      key={`overdue-${f.id}`}
+                      className="p-4 md:p-5 flex justify-between items-center group"
+                    >
+                      {/* Reuse list item layout - slightly dimmed */}
+                      <div className="flex gap-4 items-center min-w-0 opacity-75">
+                        <button 
+                          onClick={() => toggleStatus(f.id, f.status)}
+                          className="w-6 h-6 rounded-full border-2 border-red-200 hover:border-red-500 flex items-center justify-center transition-all cursor-pointer"
+                        >
+                        </button>
+                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 bg-red-100 text-red-700 border border-white shadow-sm">
+                          !
+                        </div>
+                        <div className="min-w-0 text-left">
+                          <h4 className="text-sm font-black text-slate-900 truncate">{f.description}</h4>
+                          <div className="flex items-center gap-2 text-[9px] text-red-400 font-black uppercase tracking-widest mt-1">
+                            <Calendar size={10} /> 
+                            {new Date(f.dueDate).toLocaleDateString()} (Atrasado)
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-base font-black text-red-600 tracking-tighter italic">
+                          R$ {f.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                    </motion.div>
+                  ))}
+                  <div className="h-4 bg-white" />
+                </div>
+              )}
               
-              {finances.sort((a, b) => getSortDate(a) - getSortDate(b)).map((f) => (
+              {processedFinances.sort((a, b) => getSortDate(a) - getSortDate(b)).map((f) => (
                 <motion.div 
                   layout
                   key={f.id}
@@ -445,12 +604,12 @@ export function FinanceView() {
                           <Calendar size={10} /> 
                           {f.type === FinanceType.FIXA ? `Todo dia ${f.dueDate}` : new Date(f.dueDate).toLocaleDateString()}
                         </span>
-                        {(f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO) && (
+                            {(f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO) && (
                           <span className={cn(
                             "px-1.5 rounded-md",
                             f.type === FinanceType.RENEGOCIACAO ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
                           )}>
-                            {f.type === FinanceType.RENEGOCIACAO ? "Negociação" : "Parcela"} {f.currentInstallment}/{f.totalInstallments}
+                            {f.type === FinanceType.RENEGOCIACAO ? "Negociação" : "Parcela"} {f.displayInstallment || f.currentInstallment}/{f.totalInstallments}
                           </span>
                         )}
                         {f.status === FinanceStatus.PAGO && (

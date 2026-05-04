@@ -45,7 +45,8 @@ service cloud.firestore {
              data.description is string && data.description.size() > 0 && data.description.size() <= 200 &&
              data.value is number &&
              data.type in ['fixo', 'volatil'] &&
-             data.ownerId is string;
+             data.ownerId is string &&
+             (!data.keys().contains('date') || data.date is string);
     }
 
     function isValidMeal(data) {
@@ -98,7 +99,7 @@ service cloud.firestore {
         allow get: if isOwner(userId);
         allow create: if isOwner(userId) && isValidId(incomeId) && isValidIncome(incoming());
         allow update: if isOwner(userId) && isValidIncome(incoming()) && 
-                      incoming().diff(existing()).affectedKeys().hasOnly(['description', 'value', 'type', 'updatedAt']);
+                      incoming().diff(existing()).affectedKeys().hasOnly(['description', 'value', 'type', 'updatedAt', 'date']);
         allow delete: if isOwner(userId);
       }
 

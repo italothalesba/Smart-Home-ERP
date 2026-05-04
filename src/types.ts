@@ -11,6 +11,7 @@ export interface Income {
   value: number;
   type: 'fixo' | 'volatil';
   ownerId: string;
+  date?: string;
 }
 
 export enum FinanceStatus {
@@ -63,6 +64,7 @@ export interface Finance {
   value: number;
   totalInstallments?: number;
   currentInstallment?: number;
+  displayInstallment?: number;
   status: FinanceStatus;
   dueDate: string;
   ownerId: string;
