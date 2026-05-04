@@ -35,7 +35,8 @@ export function FinanceView() {
   const totalIncomes = incomes.reduce((acc, i) => acc + i.value, 0);
   
   const totalMonthlyExpenditure = finances.reduce((acc, f) => {
-    const value = f.type === FinanceType.PARCELADO && f.totalInstallments 
+    const isInstallmentBased = f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO;
+    const value = isInstallmentBased && f.totalInstallments 
       ? f.value / f.totalInstallments 
       : f.value;
     return acc + (Math.round(value * 100) / 100);
@@ -43,7 +44,8 @@ export function FinanceView() {
 
   const totalPaidExpenditure = finances.reduce((acc, f) => {
     if (f.status !== FinanceStatus.PAGO) return acc;
-    const value = f.type === FinanceType.PARCELADO && f.totalInstallments 
+    const isInstallmentBased = f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO;
+    const value = isInstallmentBased && f.totalInstallments 
       ? f.value / f.totalInstallments 
       : f.value;
     return acc + (Math.round(value * 100) / 100);
@@ -65,8 +67,8 @@ export function FinanceView() {
       description: form.description,
       value: Math.round(parseFloat(form.value) * 100) / 100,
       type: form.type,
-      totalInstallments: form.type === FinanceType.PARCELADO ? parseInt(form.totalInstallments) : 1,
-      currentInstallment: form.type === FinanceType.PARCELADO ? parseInt(form.currentInstallment) : 1,
+      totalInstallments: (form.type === FinanceType.PARCELADO || form.type === FinanceType.RENEGOCIACAO) ? parseInt(form.totalInstallments) : 1,
+      currentInstallment: (form.type === FinanceType.PARCELADO || form.type === FinanceType.RENEGOCIACAO) ? parseInt(form.currentInstallment) : 1,
       status: FinanceStatus.PENDENTE,
       dueDate: savedDueDate
     });
@@ -113,9 +115,9 @@ export function FinanceView() {
               R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </h2>
           </div>
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2 flex items-center gap-2">
+          <div className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2 flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Previsto: R$ {projectedBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-          </p>
+          </div>
         </div>
 
         <div className="bg-white rounded-[32px] p-6 md:p-8 border border-slate-200 shadow-sm flex flex-col justify-between">
@@ -306,14 +308,17 @@ export function FinanceView() {
                       <option value={FinanceType.FIXA}>Fixa</option>
                       <option value={FinanceType.PARCELADO}>Parcelado</option>
                       <option value={FinanceType.EXTRA}>Extra</option>
+                      <option value={FinanceType.RENEGOCIACAO}>Renegociação Cartão</option>
                     </select>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  {form.type === FinanceType.PARCELADO && (
+                  {(form.type === FinanceType.PARCELADO || form.type === FinanceType.RENEGOCIACAO) && (
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Parcela Atual</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">
+                        {form.type === FinanceType.RENEGOCIACAO ? "Meses Pagos" : "Parcela Atual"}
+                      </label>
                       <input 
                         type="number"
                         placeholder="Ex: 5"
@@ -323,7 +328,7 @@ export function FinanceView() {
                       />
                     </div>
                   )}
-                  {form.type === FinanceType.PARCELADO && (
+                  {(form.type === FinanceType.PARCELADO || form.type === FinanceType.RENEGOCIACAO) && (
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Total de Parcelas</label>
                       <input 
@@ -396,7 +401,8 @@ export function FinanceView() {
                     <div className={cn(
                       "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 border border-white shadow-sm",
                       f.type === FinanceType.FIXA ? "bg-slate-900 text-white" :
-                      f.type === FinanceType.PARCELADO ? "bg-amber-500 text-white" : "bg-emerald-600 text-white"
+                      f.type === FinanceType.PARCELADO ? "bg-amber-500 text-white" : 
+                      f.type === FinanceType.RENEGOCIACAO ? "bg-red-900 text-white" : "bg-emerald-600 text-white"
                     )}>
                       {f.type[0].toUpperCase()}
                     </div>
@@ -410,9 +416,12 @@ export function FinanceView() {
                           <Calendar size={10} /> 
                           {f.type === FinanceType.FIXA ? `Todo dia ${f.dueDate}` : new Date(f.dueDate).toLocaleDateString()}
                         </span>
-                        {f.type === FinanceType.PARCELADO && (
-                          <span className="bg-amber-100 text-amber-700 px-1.5 rounded-md">
-                            Parcela {f.currentInstallment}/{f.totalInstallments}
+                        {(f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO) && (
+                          <span className={cn(
+                            "px-1.5 rounded-md",
+                            f.type === FinanceType.RENEGOCIACAO ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
+                          )}>
+                            {f.type === FinanceType.RENEGOCIACAO ? "Negociação" : "Parcela"} {f.currentInstallment}/{f.totalInstallments}
                           </span>
                         )}
                         {f.status === FinanceStatus.PAGO && (
@@ -429,7 +438,8 @@ export function FinanceView() {
                         f.status === FinanceStatus.PAGO ? "text-slate-400" : "text-slate-900"
                       )}>
                         R$ {(() => {
-                          const val = f.type === FinanceType.PARCELADO ? f.value / (f.totalInstallments || 1) : f.value;
+                          const isInstallmentBased = f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO;
+                          const val = isInstallmentBased ? f.value / (f.totalInstallments || 1) : f.value;
                           return (Math.round(val * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
                         })()}
                       </p>

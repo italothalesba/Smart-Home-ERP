@@ -35,7 +35,7 @@ service cloud.firestore {
     function isValidFinance(data) {
       return data.keys().hasAll(['description', 'type', 'value']) &&
              data.description is string && data.description.size() > 0 && data.description.size() <= 200 &&
-             data.type in ['fixa', 'parcelado', 'extra'] &&
+             data.type in ['fixa', 'parcelado', 'extra', 'renegociacao'] &&
              data.value is number &&
              (!data.keys().contains('status') || data.status in ['pendente', 'pago']);
     }
@@ -89,7 +89,7 @@ service cloud.firestore {
         allow get: if isOwner(userId);
         allow create: if isOwner(userId) && isValidId(financeId) && isValidFinance(incoming());
         allow update: if isOwner(userId) && isValidFinance(incoming()) && 
-                      incoming().diff(existing()).affectedKeys().hasOnly(['description', 'value', 'type', 'totalInstallments', 'currentInstallment', 'status', 'dueDate']);
+                      incoming().diff(existing()).affectedKeys().hasOnly(['description', 'value', 'type', 'totalInstallments', 'currentInstallment', 'status', 'dueDate', 'updatedAt']);
         allow delete: if isOwner(userId);
       }
 
@@ -98,7 +98,7 @@ service cloud.firestore {
         allow get: if isOwner(userId);
         allow create: if isOwner(userId) && isValidId(incomeId) && isValidIncome(incoming());
         allow update: if isOwner(userId) && isValidIncome(incoming()) && 
-                      incoming().diff(existing()).affectedKeys().hasOnly(['description', 'value', 'type']);
+                      incoming().diff(existing()).affectedKeys().hasOnly(['description', 'value', 'type', 'updatedAt']);
         allow delete: if isOwner(userId);
       }
 

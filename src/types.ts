@@ -2,6 +2,7 @@ export enum FinanceType {
   FIXA = 'fixa',
   PARCELADO = 'parcelado',
   EXTRA = 'extra',
+  RENEGOCIACAO = 'renegociacao',
 }
 
 export interface Income {
