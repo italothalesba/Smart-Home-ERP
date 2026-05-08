@@ -91,6 +91,7 @@ export interface Finance {
   currentInstallment?: number;
   displayInstallment?: number;
   status: FinanceStatus;
+  paidMonths?: string[];
   dueDate: string;
   startDate?: string;
   endDate?: string;

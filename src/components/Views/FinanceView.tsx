@@ -76,18 +76,22 @@ export function FinanceView() {
     return false;
   });
 
-  // Calculate dynamic properties for filtered items (like current installment number)
+  // Calculate dynamic properties for filtered items (like current installment number and month-specific status)
+  const currentMonthKey = `${selectedDate.getFullYear()}-${selectedDate.getMonth() + 1}`;
+
   const processedFinances = filteredFinances.map(f => {
+    const itemIsPaid = f.paidMonths?.includes(currentMonthKey) || (f.type === FinanceType.EXTRA && f.status === FinanceStatus.PAGO);
+
     if (f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO) {
       const financeDate = new Date(f.dueDate);
       const startMonth = financeDate.getFullYear() * 12 + financeDate.getMonth();
-      const currentMonth = selectedDate.getFullYear() * 12 + selectedDate.getMonth();
-      const diff = currentMonth - startMonth;
+      const currentMonthNum = selectedDate.getFullYear() * 12 + selectedDate.getMonth();
+      const diff = currentMonthNum - startMonth;
       const calculatedInstallment = (f.currentInstallment || 1) + diff;
       
-      return { ...f, displayInstallment: calculatedInstallment };
+      return { ...f, displayInstallment: calculatedInstallment, isPaid: itemIsPaid };
     }
-    return f;
+    return { ...f, isPaid: itemIsPaid };
   });
 
   const filteredIncomes = incomes.filter(i => {
@@ -106,8 +110,8 @@ export function FinanceView() {
     return acc + (Math.round(value * 100) / 100);
   }, 0);
 
-  const totalPaidExpenditure = processedFinances.reduce((acc, f) => {
-    if (f.status !== FinanceStatus.PAGO) return acc;
+  const totalPaidExpenditure = processedFinances.reduce((acc, f: any) => {
+    if (!f.isPaid) return acc;
     const isInstallmentBased = f.type === FinanceType.PARCELADO || f.type === FinanceType.RENEGOCIACAO;
     const value = isInstallmentBased && f.totalInstallments 
       ? f.value / f.totalInstallments 
@@ -203,9 +207,30 @@ export function FinanceView() {
     setIncomeForm({ description: '', value: '', type: 'fixo' });
   };
 
-  const toggleStatus = async (id: string, currentStatus: FinanceStatus) => {
+  const toggleStatus = async (id: string, currentStatus: FinanceStatus, dateOverride?: Date) => {
+    const finance = finances.find(f => f.id === id);
+    if (!finance) return;
+
+    const targetDate = dateOverride || selectedDate;
+    const monthKey = `${targetDate.getFullYear()}-${targetDate.getMonth() + 1}`;
+    const paidMonths = finance.paidMonths || [];
+    const isPaid = paidMonths.includes(monthKey);
+
+    let newPaidMonths: string[];
+    if (isPaid) {
+      newPaidMonths = paidMonths.filter(m => m !== monthKey);
+    } else {
+      newPaidMonths = [...paidMonths, monthKey];
+    }
+
+    // For EXTRA items, we keep syncing the status field for legacy/simple views
+    const newStatus = (finance.type === FinanceType.EXTRA)
+      ? (newPaidMonths.includes(monthKey) ? FinanceStatus.PAGO : FinanceStatus.PENDENTE)
+      : finance.status;
+
     await updateFinance(id, {
-      status: currentStatus === FinanceStatus.PAGO ? FinanceStatus.PENDENTE : FinanceStatus.PAGO
+      paidMonths: newPaidMonths,
+      status: newStatus
     });
   };
 
@@ -224,11 +249,14 @@ export function FinanceView() {
   };
 
   const overdueFinances = finances.filter(f => {
-    if (f.status === FinanceStatus.PAGO) return false;
+    const financeDate = new Date(f.dueDate);
+    const monthKey = `${financeDate.getFullYear()}-${financeDate.getMonth() + 1}`;
+    const itemIsPaid = f.paidMonths?.includes(monthKey) || (f.type === FinanceType.EXTRA && f.status === FinanceStatus.PAGO);
+
+    if (itemIsPaid) return false;
     
     if (f.type === FinanceType.FIXA) return false;
     
-    const financeDate = new Date(f.dueDate);
     const selectedMonthStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
     
     // Check if it belongs to a month BEFORE the selected month
@@ -708,7 +736,7 @@ export function FinanceView() {
                       {/* Reuse list item layout - slightly dimmed */}
                       <div className="flex gap-4 items-center min-w-0 opacity-75">
                         <button 
-                          onClick={() => toggleStatus(f.id, f.status)}
+                          onClick={() => toggleStatus(f.id, f.status, new Date(f.dueDate))}
                           className="w-6 h-6 rounded-full border-2 border-red-200 hover:border-red-500 flex items-center justify-center transition-all cursor-pointer"
                         >
                         </button>
@@ -734,13 +762,13 @@ export function FinanceView() {
                 </div>
               )}
               
-              {processedFinances.sort((a, b) => getSortDate(a) - getSortDate(b)).map((f) => (
+              {processedFinances.sort((a, b) => getSortDate(a) - getSortDate(b)).map((f: any) => (
                 <motion.div 
                   layout
                   key={f.id}
                   className={cn(
                     "p-4 md:p-5 flex justify-between items-center group transition-opacity",
-                    f.status === FinanceStatus.PAGO && "opacity-50"
+                    f.isPaid && "opacity-50"
                   )}
                 >
                   <div className="flex gap-4 items-center min-w-0">
@@ -748,12 +776,12 @@ export function FinanceView() {
                       onClick={() => toggleStatus(f.id, f.status)}
                       className={cn(
                         "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all cursor-pointer",
-                        f.status === FinanceStatus.PAGO 
+                        f.isPaid 
                           ? "bg-emerald-500 border-emerald-500 text-white" 
                           : "border-slate-200 hover:border-emerald-500"
                       )}
                     >
-                      {f.status === FinanceStatus.PAGO && <div className="w-2 h-2 bg-white rounded-full" />}
+                      {f.isPaid && <div className="w-2 h-2 bg-white rounded-full" />}
                     </button>
                     <div className={cn(
                       "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 border border-white shadow-sm",
@@ -766,7 +794,7 @@ export function FinanceView() {
                     <div className="min-w-0 text-left">
                       <h4 className={cn(
                         "text-sm font-black text-slate-900 truncate",
-                        f.status === FinanceStatus.PAGO && "line-through text-slate-400"
+                        f.isPaid && "line-through text-slate-400"
                       )}>{f.description}</h4>
                       <div className="flex items-center flex-wrap gap-2 text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">
                         <span className="flex items-center gap-1">
@@ -791,7 +819,7 @@ export function FinanceView() {
                              FIM: {new Date(f.endDate).toLocaleDateString()}
                           </span>
                         )}
-                        {f.status === FinanceStatus.PAGO && (
+                        {f.isPaid && (
                           <span className="bg-emerald-100 text-emerald-700 px-1.5 rounded-md">PAGO</span>
                         )}
                       </div>
