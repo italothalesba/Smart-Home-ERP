@@ -106,19 +106,37 @@ function DashboardView({
   const { data: products } = useFirestore<Product>('products');
   const [seeding, setSeeding] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [confirmingAction, setConfirmingAction] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const handleSeed = async () => {
-    if (confirm('Deseja importar os dados informados anteriormente? Isso preencherá suas finanças, estoque e dieta.')) {
-      setSeeding(true);
-      try {
-        await seedUserData(user.uid);
-        alert('Dados importados com sucesso!');
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setSeeding(false);
+    setConfirmingAction({
+      title: 'Importar Dados',
+      message: 'Deseja importar os dados informados anteriormente? Isso preencherá suas finanças, estoque e dieta.',
+      onConfirm: async () => {
+        setConfirmingAction(null);
+        setSeeding(true);
+        try {
+          await seedUserData(user.uid);
+          showToast('Dados importados com sucesso!');
+        } catch (err) {
+          console.error(err);
+          showToast('Erro ao importar dados.', 'error');
+        } finally {
+          setSeeding(false);
+        }
       }
-    }
+    });
   };
 
   const totalMonthlyImpact = finances.reduce((acc, f) => {
@@ -136,7 +154,62 @@ function DashboardView({
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(publicUrl)}`;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 relative">
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20, x: '-50%' }}
+            animate={{ opacity: 1, y: 20, x: '-50%' }}
+            exit={{ opacity: 0, y: -20, x: '-50%' }}
+            className={cn(
+              "fixed top-0 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-2xl shadow-2xl font-black text-xs uppercase tracking-widest flex items-center gap-3",
+              toast.type === 'success' ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+            )}
+          >
+            <Sparkles size={16} />
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {confirmingAction && (
+          <div className="fixed inset-0 z-[210] flex items-center justify-center p-4 md:p-8">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setConfirmingAction(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl border border-slate-200"
+            >
+              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">{confirmingAction.title}</h3>
+              <p className="text-sm font-bold text-slate-500 mb-8 leading-relaxed">{confirmingAction.message}</p>
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setConfirmingAction(null)}
+                  className="flex-1 px-6 py-4 rounded-2xl bg-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={confirmingAction.onConfirm}
+                  className="flex-1 px-6 py-4 rounded-2xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 shadow-xl transition-colors cursor-pointer"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       {/* Dynamic Header for Dashboard */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
@@ -360,7 +433,7 @@ function DashboardView({
                   <button 
                     onClick={() => {
                       navigator.clipboard.writeText(publicUrl);
-                      alert('Link copiado!');
+                      showToast('Link copiado!');
                     }}
                     className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest cursor-pointer"
                   >

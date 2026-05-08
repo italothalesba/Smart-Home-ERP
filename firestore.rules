@@ -78,7 +78,7 @@ service cloud.firestore {
         allow get: if isOwner(userId);
         allow create: if isOwner(userId) && isValidId(productId) && isValidProduct(incoming());
         allow update: if isOwner(userId) && isValidProduct(incoming()) && 
-                      incoming().diff(existing()).affectedKeys().hasOnly(['name', 'price', 'quantity', 'category', 'unit', 'minStock', 'updatedAt']);
+                      incoming().diff(existing()).affectedKeys().hasOnly(['name', 'price', 'quantity', 'category', 'unit', 'minStock', 'brand', 'lastPurchasedAt', 'updatedAt', 'ownerId']);
         allow delete: if isOwner(userId);
       }
 
@@ -121,6 +121,17 @@ service cloud.firestore {
         allow update: if isOwner(userId) && isValidMarketItem(incoming());
         allow delete: if isOwner(userId);
       }
+    }
+
+    // --- Public Collaborative Collections ---
+    match /markets/{marketId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isValidId(marketId);
+    }
+
+    match /public_catalog/{productId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isValidId(productId);
     }
   }
 }

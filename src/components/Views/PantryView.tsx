@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useFirestore } from '../../hooks/useFirestore';
-import { Product, Meal, Finance, FinanceType, FinanceStatus, MarketItem } from '../../types';
-import { INGREDIENT_RATIOS } from '../../lib/constants';
-import { Plus, Trash2, Package, AlertCircle, ShoppingCart, Pencil, Check, X as CloseIcon, LayoutGrid, Store, Save, ArrowRight, ListChecks, Search } from 'lucide-react';
+import { Product, Meal, Finance, FinanceType, FinanceStatus, MarketItem, Market } from '../../types';
+import { INGREDIENT_RATIOS, MARKET_CATALOG, MARKET_LIST } from '../../lib/constants';
+import { Plus, Trash2, Package, AlertCircle, ShoppingCart, Pencil, Check, X as CloseIcon, LayoutGrid, Store, Save, ArrowRight, ListChecks, Search, RefreshCw, ChevronDown, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -14,10 +14,10 @@ function cn(...inputs: ClassValue[]) {
 const CATEGORY_ORDER = [
   'Mercearia',
   'Proteínas',
-  'Laticínios',
+  'Padaria / Laticínios',
   'Hortifruti',
-  'Padaria',
-  'Higiene/Limpeza',
+  'Matinais / Bebidas',
+  'Higiene / Limpeza',
   'Pets',
   'Outros'
 ];
@@ -28,7 +28,32 @@ export function PantryView() {
   const { add: addFinance } = useFirestore<Finance>('finances');
   const { data: marketItems, add: addMarketItem, remove: removeMarketItem, update: updateMarketItem } = useFirestore<MarketItem>('market_items');
   
+  const { data: componentsMarkets, add: addMarket } = useFirestore<Market>('/markets');
+  const { data: publicCatalog, add: addToPublicCatalog, update: updatePublicCatalog } = useFirestore<any>('/public_catalog');
+  
+  const allMarkets = useMemo(() => {
+    const fromFirestore = componentsMarkets.map(m => m.name);
+    // Include static defaults + unique from firestore
+    const merged = Array.from(new Set([...MARKET_LIST, ...fromFirestore]));
+    return merged;
+  }, [componentsMarkets]);
+
+  // Merge static catalog with cloud catalog for suggestions
+  const fullCatalogMap = useMemo(() => {
+    const map = new Map<string, any>();
+    // Start with static
+    MARKET_CATALOG.forEach(item => map.set(item.name.toLowerCase(), { ...item, source: 'static' }));
+    // Update with cloud (truth source)
+    publicCatalog.forEach(item => map.set(item.name.toLowerCase(), { ...item, source: 'cloud' }));
+    return map;
+  }, [publicCatalog]);
+
   const [viewMode, setViewMode] = useState<'catalog' | 'market'>('catalog');
+  const [selectedMarket, setSelectedMarket] = useState('Carrefour');
+  const [isAddingMarket, setIsAddingMarket] = useState(false);
+  const [newMarketName, setNewMarketName] = useState('');
+
+  const [marketCategoryFilter, setMarketCategoryFilter] = useState('Todos');
   const [isAdding, setIsAdding] = useState(false);
   const [form, setForm] = useState({
     name: '',
@@ -120,6 +145,22 @@ export function PantryView() {
   const lowStockItems = products.filter(p => p.quantity <= (p.minStock || 0));
   const totalFeira = products.reduce((acc, p) => acc + (p.price * p.quantity), 0);
 
+  const filteredMarketItems = useMemo(() => {
+    if (marketCategoryFilter === 'Todos') return marketItems;
+    const catProducts = products.filter(p => p.category === marketCategoryFilter);
+    const productIds = catProducts.map(p => p.id);
+    return marketItems.filter(item => productIds.includes(item.productId));
+  }, [marketItems, marketCategoryFilter, products]);
+
+  const marketCategories = useMemo(() => {
+    const categoriesInMarket = new Set<string>();
+    marketItems.forEach(item => {
+      const p = products.find(prod => prod.id === item.productId);
+      if (p) categoriesInMarket.add(p.category);
+    });
+    return ['Todos', ...Array.from(categoriesInMarket)];
+  }, [marketItems, products]);
+
   const initializeMarketMode = async () => {
     // Check for minStock deficits not yet in marketItems
     for (const p of products) {
@@ -142,7 +183,7 @@ export function PantryView() {
 
   const addToMarket = async (p: Product) => {
     if (marketItems.find(item => item.productId === p.id)) {
-      alert('Item já está na lista de feira!');
+      showToast('Item já está na lista de feira!', 'error');
       return;
     }
     await addMarketItem({
@@ -158,47 +199,81 @@ export function PantryView() {
   const finalizeMarketTrip = async () => {
     if (marketItems.length === 0) return;
     
-    const confirm = window.confirm(`Deseja finalizar a feira? Isso atualizará seu estoque e lançará a despesa em Contas.`);
-    if (!confirm) return;
-
-    try {
-      let totalCost = 0;
-      
-      for (const item of marketItems) {
-        const original = products.find(p => p.id === item.productId);
-        if (original) {
-          const newQuantity = original.quantity + (item.quantity || 0);
-          totalCost += (item.price || 0) * (item.quantity || 0);
+    setConfirmingAction({
+      title: 'Finalizar Feira',
+      message: 'Deseja finalizar a feira? Isso atualizará seu estoque e lançará a despesa em Contas.',
+      onConfirm: async () => {
+        setConfirmingAction(null);
+        try {
+          let totalCost = 0;
           
-          await update(original.id, {
-            quantity: newQuantity,
-            price: item.price,
-            brand: item.brand,
-            updatedAt: new Date().toISOString(),
-            lastPurchasedAt: new Date().toISOString()
-          });
+          for (const item of marketItems) {
+            const original = products.find(p => p.id === item.productId);
+            if (original) {
+              const newQuantity = original.quantity + (item.quantity || 0);
+              totalCost += (item.price || 0) * (item.quantity || 0);
+              
+              await update(original.id, {
+                quantity: newQuantity,
+                price: item.price,
+                brand: item.brand,
+                updatedAt: new Date().toISOString(),
+                lastPurchasedAt: new Date().toISOString()
+              });
+
+              // COLLABORATIVE SYNC: Update public catalog with the newly discovered price/brand
+              const catalogKey = item.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+              const cloudItem = publicCatalog.find((c: any) => c.name.toLowerCase() === item.name.toLowerCase());
+              
+              const priceEntry = {
+                price: item.price,
+                brand: item.brand,
+                updatedAt: new Date().toISOString()
+              };
+
+              if (cloudItem) {
+                const updatedPrices = { ...(cloudItem.marketPrices || {}), [selectedMarket]: priceEntry };
+                // Also update brands list if new
+                const updatedBrands = Array.from(new Set([...(cloudItem.brands || []), item.brand].filter(Boolean)));
+                await updatePublicCatalog(cloudItem.id, { 
+                  marketPrices: updatedPrices,
+                  brands: updatedBrands 
+                });
+              } else {
+                // If it was a static item not yet in cloud, or a custom item
+                const staticItem = MARKET_CATALOG.find(c => c.name.toLowerCase() === item.name.toLowerCase());
+                await addToPublicCatalog({
+                  name: item.name,
+                  category: original.category,
+                  unit: item.unit,
+                  brands: item.brand ? [item.brand] : (staticItem?.brands || []),
+                  marketPrices: { [selectedMarket]: priceEntry }
+                });
+              }
+            }
+            // Remove from market suggestions
+            await removeMarketItem(item.id);
+          }
+
+          if (totalCost > 0) {
+            await addFinance({
+              description: `Compra Supermercado (${new Date().toLocaleDateString('pt-BR')})`,
+              value: totalCost,
+              type: FinanceType.EXTRA,
+              status: FinanceStatus.PENDENTE,
+              dueDate: new Date().toISOString(),
+              ownerId: 'system'
+            });
+          }
+
+          showToast(`Sucesso! Estoque atualizado e R$ ${totalCost.toFixed(2)} lançado em Finanças.`);
+          setViewMode('catalog');
+        } catch (error) {
+          console.error('Finalize market error:', error);
+          showToast('Erro ao finalizar. Tente novamente.', 'error');
         }
-        // Remove from market suggestions
-        await removeMarketItem(item.id);
       }
-
-      if (totalCost > 0) {
-        await addFinance({
-          description: `Compra Supermercado (${new Date().toLocaleDateString('pt-BR')})`,
-          value: totalCost,
-          type: FinanceType.EXTRA,
-          status: FinanceStatus.PENDENTE,
-          dueDate: new Date().toISOString(),
-          ownerId: 'system'
-        });
-      }
-
-      alert(`Sucesso! Estoque atualizado e R$ ${totalCost.toFixed(2)} lançado em Finanças.`);
-      setViewMode('catalog');
-    } catch (error) {
-      console.error('Finalize market error:', error);
-      alert('Erro ao finalizar. Tente novamente.');
-    }
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -215,71 +290,174 @@ export function PantryView() {
     setForm({ name: '', quantity: '', minStock: '', category: 'Mercearia', unit: 'un', price: '' });
   };
 
-  const loadSuggestedList = () => {
-    const suggested = [
-      // Mercearia
-      { name: 'Arroz', quantity: 5, unit: 'pct', price: 4, category: 'Mercearia' },
-      { name: 'Cuscuz', quantity: 8, unit: 'pct', price: 1.7, category: 'Mercearia' },
-      { name: 'Macarrão', quantity: 4, unit: 'pct', price: 2.5, category: 'Mercearia' },
-      { name: 'Óleo', quantity: 2, unit: 'garrafa', price: 9, category: 'Mercearia' },
-      { name: 'Tapioca', quantity: 4, unit: 'pct', price: 6, category: 'Mercearia' },
-      { name: 'Molho de Tomate', quantity: 8, unit: 'un', price: 2, category: 'Mercearia' },
-      { name: 'Sal', quantity: 1, unit: 'pct', price: 1.2, category: 'Mercearia' },
-      { name: 'Açúcar', quantity: 2, unit: 'pct', price: 2.5, category: 'Mercearia' },
-      { name: 'CreamCracker', quantity: 6, unit: 'pct', price: 4.5, category: 'Mercearia' },
-      { name: 'Creme de Leite', quantity: 8, unit: 'caixa', price: 3, category: 'Mercearia' },
-      { name: 'Margarina', quantity: 2, unit: 'Kg', price: 10, category: 'Mercearia' },
-      { name: 'Café', quantity: 2, unit: 'pct', price: 14, category: 'Mercearia' },
-      { name: 'Milho e Ervilha', quantity: 2, unit: 'lata', price: 5, category: 'Mercearia' },
-      { name: 'Goiabada', quantity: 1, unit: 'un', price: 8, category: 'Mercearia' },
-      { name: 'Bananada', quantity: 1, unit: 'un', price: 7, category: 'Mercearia' },
-      
-      // Proteínas
-      { name: 'Fígado', quantity: 3, unit: 'Kg', price: 15, category: 'Proteínas' },
-      { name: 'Frango', quantity: 5, unit: 'Kg', price: 14, category: 'Proteínas' },
-      { name: 'Carne Moída', quantity: 2, unit: 'Kg', price: 16, category: 'Proteínas' },
-      { name: 'Ovo', quantity: 40, unit: 'un', price: 0.3, category: 'Proteínas' },
-      { name: 'Calabresa', quantity: 3, unit: 'pct', price: 10, category: 'Proteínas' },
-      { name: 'Bisteca', quantity: 2, unit: 'Kg', price: 16, category: 'Proteínas' },
-      { name: 'Mortadela Defumada', quantity: 500, unit: 'g', price: 0.03, category: 'Proteínas' },
-      { name: 'Queijo Mussarela', quantity: 300, unit: 'g', price: 0.066, category: 'Proteínas' },
-      
-      // Laticínios
-      { name: 'Leite', quantity: 8, unit: 'Litro', price: 5, category: 'Laticínios' },
-      
-      // Padaria
-      { name: 'Pão Francês', quantity: 20, unit: 'un', price: 0.75, category: 'Padaria' },
-      
-      // Higiene/Limpeza
-      { name: 'Sabonete', quantity: 6, unit: 'un', price: 2, category: 'Higiene/Limpeza' },
-      { name: 'Detergente', quantity: 8, unit: 'un', price: 2, category: 'Higiene/Limpeza' },
-      { name: 'Sabão Líquido', quantity: 2, unit: 'un', price: 16, category: 'Higiene/Limpeza' },
-      { name: 'Cloro', quantity: 4, unit: 'un', price: 2, category: 'Higiene/Limpeza' },
-      { name: 'Papel Higiênico', quantity: 1, unit: 'pct', price: 18, category: 'Higiene/Limpeza' },
-      { name: 'Pasta de Dente', quantity: 2, unit: 'un', price: 4, category: 'Higiene/Limpeza' },
-      { name: 'Esponja de Louça', quantity: 6, unit: 'un', price: 2, category: 'Higiene/Limpeza' },
-      { name: 'Lã de Alumínio', quantity: 2, unit: 'un', price: 4, category: 'Higiene/Limpeza' },
-      { name: 'Desinfetante', quantity: 2, unit: 'un', price: 8, category: 'Higiene/Limpeza' },
-      { name: 'Shampoo/Cond/Deso', quantity: 1, unit: 'kit', price: 40, category: 'Higiene/Limpeza' },
-      
-      // Pets
-      { name: 'Ração Gato', quantity: 2, unit: 'Kg', price: 18, category: 'Pets' },
-      { name: 'Ração Cachorra', quantity: 3, unit: 'Kg', price: 12, category: 'Pets' },
-      
-      // Hortifruti
-      { name: 'Mix Vegetais/Frutas', quantity: 1, unit: 'Semanal', price: 100, category: 'Hortifruti' },
-    ];
+  const [isResetting, setIsResetting] = useState(false);
+  const [confirmingAction, setConfirmingAction] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  } | null>(null);
 
-    suggested.forEach(item => {
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const loadSuggestedList = () => {
+    MARKET_CATALOG.forEach(item => {
       // Check if item already exists to avoid duplicates (simplified check by name)
       if (!products.find(p => p.name.toLowerCase() === item.name.toLowerCase())) {
-        add({ ...item, minStock: 0 });
+        add({ ...item, quantity: 0 }); // Start with zeroed stock
+      }
+    });
+    showToast('Catálogo completo importado com sucesso (estoque zerado).');
+  };
+
+  const resetAllStock = async () => {
+    setConfirmingAction({
+      title: 'Zerar Estoque',
+      message: 'Deseja realmente ZERAR todo o seu estoque atual? Esta ação não pode ser desfeita.',
+      onConfirm: async () => {
+        setIsResetting(true);
+        setConfirmingAction(null);
+        try {
+          await Promise.all(products.map(p => update(p.id, { quantity: 0 })));
+          showToast('Todo o estoque foi zerado com sucesso!');
+        } catch (error) {
+          console.error('Reset all stock error:', error);
+          showToast('Erro ao zerar o estoque. Verifique sua conexão.', 'error');
+        } finally {
+          setIsResetting(false);
+        }
       }
     });
   };
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto px-1 md:px-0">
+    <div className="space-y-8 max-w-6xl mx-auto px-1 md:px-0 relative">
+      {/* Add Market Modal */}
+      <AnimatePresence>
+        {isAddingMarket && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+             <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAddingMarket(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl"
+            >
+              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-6">Novo Mercado</h3>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Nome do Estabelecimento</label>
+                  <input 
+                    autoFocus
+                    placeholder="Ex: Mercadinho do Bairro" 
+                    value={newMarketName} 
+                    onChange={e => setNewMarketName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && (async () => {
+                      if (newMarketName) {
+                        await addMarket({ name: newMarketName });
+                        setSelectedMarket(newMarketName);
+                        setIsAddingMarket(false);
+                        setNewMarketName('');
+                        showToast('Mercado adicionado!');
+                      }
+                    })()}
+                    className="w-full px-5 py-4 border border-slate-100 bg-slate-50 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none" 
+                  />
+                </div>
+                <div className="flex gap-4 pt-4">
+                   <button 
+                    onClick={() => setIsAddingMarket(false)}
+                    className="flex-1 py-4 bg-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      if (newMarketName) {
+                        await addMarket({ name: newMarketName });
+                        setSelectedMarket(newMarketName);
+                        setIsAddingMarket(false);
+                        setNewMarketName('');
+                        showToast('Mercado adicionado!');
+                      }
+                    }}
+                    className="flex-1 py-4 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-emerald-100 transition-all cursor-pointer"
+                  >
+                    Salvar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20, x: '-50%' }}
+            animate={{ opacity: 1, y: 20, x: '-50%' }}
+            exit={{ opacity: 0, y: -20, x: '-50%' }}
+            className={cn(
+              "fixed top-0 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-2xl font-black text-xs uppercase tracking-widest flex items-center gap-3",
+              toast.type === 'success' ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+            )}
+          >
+            {toast.type === 'success' ? <Check size={16} /> : <AlertCircle size={16} />}
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {confirmingAction && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 md:p-8">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setConfirmingAction(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white rounded-[32px] p-8 max-w-md w-full shadow-2xl border border-slate-200"
+            >
+              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">{confirmingAction.title}</h3>
+              <p className="text-sm font-bold text-slate-500 mb-8 leading-relaxed">{confirmingAction.message}</p>
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setConfirmingAction(null)}
+                  className="flex-1 px-6 py-4 rounded-2xl bg-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={confirmingAction.onConfirm}
+                  className="flex-1 px-6 py-4 rounded-2xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 shadow-xl transition-colors cursor-pointer"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       {/* View Switcher & Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
@@ -325,11 +503,11 @@ export function PantryView() {
           <div className="lg:col-span-4 space-y-6">
             <div className="bg-slate-900 text-white rounded-[32px] p-8 shadow-2xl relative overflow-hidden">
               <div className="absolute right-0 top-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl -mr-16 -mt-16" />
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Patrimônio em Alimentos</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Gestão de Insumos</p>
               <h2 className="text-5xl font-black text-white tracking-tighter mb-8">
                 R$ {totalFeira.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </h2>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-2">
                 <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl flex items-center gap-3">
                    <Package size={14} className="text-emerald-400" />
                    <span className="text-[10px] font-bold uppercase">{products.length} Itens</span>
@@ -431,124 +609,275 @@ export function PantryView() {
         </div>
       ) : (
         /* Market Mode Interface */
-        <div className="bg-white rounded-[40px] border border-slate-200 shadow-2xl overflow-hidden">
-          <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
-              <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-                <Store size={24} className="text-emerald-600" />
-                Carrinho em Tempo Real
-              </h3>
-              <p className="text-xs text-slate-400 font-bold mt-1">Edite preços e marcas conforme coloca os itens no carrinho físico.</p>
-            </div>
-            
-            <div className="bg-emerald-600 text-white p-6 rounded-[28px] min-w-[240px] shadow-xl shadow-emerald-100 relative overflow-hidden group">
-               <div className="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-700" />
-               <p className="text-[10px] font-black text-emerald-100 uppercase tracking-widest mb-1">Total Previsto</p>
-               <div className="flex items-baseline gap-2">
-                 <span className="text-xs font-bold text-emerald-200">R$</span>
-                 <span className="text-3xl font-black">
-                   {marketItems.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 0)), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                 </span>
-               </div>
-            </div>
-          </div>
-
-          <div className="p-4 md:p-8 space-y-4">
-            {marketItems.length === 0 ? (
-              <div className="py-20 text-center">
-                 <ShoppingCart size={48} className="mx-auto text-slate-100 mb-4" />
-                 <p className="text-sm font-bold text-slate-300 uppercase tracking-[0.2em]">Seu carrinho está vazio</p>
-                 <button onClick={() => setViewMode('catalog')} className="mt-4 text-emerald-600 text-[10px] font-black uppercase tracking-widest hover:underline cursor-pointer">Voltar ao Catálogo</button>
-              </div>
-            ) : (
+        <div className="space-y-6">
+          <div className="bg-white rounded-[40px] border border-slate-200 shadow-2xl overflow-hidden">
+            <div className="p-8 border-b border-slate-100 bg-slate-50/10 flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="space-y-4">
-                {/* Desktop Header */}
-                <div className="hidden md:grid grid-cols-12 gap-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest pb-2">
-                  <div className="col-span-4">Produto</div>
-                  <div className="col-span-3">Marca/Detalhe</div>
-                  <div className="col-span-2">Preço Un.</div>
-                  <div className="col-span-2">Quantidade</div>
-                  <div className="col-span-1 text-right">Subtotal</div>
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-200">
+                    <Store size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Checkout em Tempo Real</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Sincronize preços e marcas na hora da compra</p>
+                  </div>
                 </div>
-
-                {marketItems.map((item, idx) => (
-                  <div key={item.id || idx} className="bg-slate-50 md:bg-transparent rounded-[24px] p-4 md:p-0 md:grid md:grid-cols-12 md:gap-4 items-center group border md:border-none border-slate-100">
-                    {/* Name */}
-                    <div className="col-span-4 mb-4 md:mb-0 md:px-6">
-                      <p className="text-[10px] md:hidden font-black text-slate-400 uppercase tracking-widest mb-1">Produto</p>
-                      <span className="text-sm font-black text-slate-900">{item.name}</span>
-                    </div>
-
-                    {/* Brand */}
-                    <div className="col-span-3 mb-4 md:mb-0">
-                      <p className="text-[10px] md:hidden font-black text-slate-400 uppercase tracking-widest mb-2">Marca/Detalhe</p>
-                      <input 
-                        placeholder="Marca ou tipo..."
-                        value={item.brand || ''}
-                        onChange={e => updateMarketItem(item.id, { brand: e.target.value })}
-                        className="bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500 w-full"
+                
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center bg-white border border-slate-200 rounded-2xl px-4 py-2.5 shadow-sm">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-3">Estou no:</span>
+                    <select 
+                      value={selectedMarket}
+                      onChange={(e) => setSelectedMarket(e.target.value)}
+                      className="text-xs font-black text-slate-900 bg-transparent border-none outline-none appearance-none cursor-pointer pr-6 relative"
+                    >
+                      {allMarkets.map(market => (
+                        <option key={market} value={market}>{market}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={14} className="text-slate-400 -ml-4 pointer-events-none" />
+                  </div>
+                  <button 
+                    onClick={() => setIsAddingMarket(true)}
+                    className="flex justify-center items-center gap-2 text-[8px] font-black uppercase text-emerald-600 tracking-widest hover:bg-emerald-50 py-1 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Plus size={10} /> Novo Mercado
+                  </button>
+                </div>
+              </div>
+              
+              {/* Sticky Total Container */}
+              <div className="md:sticky md:top-8 z-10 w-full md:min-w-[320px]">
+                <div className="bg-slate-900 text-white p-8 rounded-[38px] shadow-2xl relative overflow-hidden group">
+                  <div className="absolute right-0 top-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl -mr-16 -mt-16 group-hover:scale-150 transition-all duration-700" />
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Total no Carrinho</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-lg font-black text-emerald-500">R$</span>
+                    <span className="text-5xl font-black tracking-tighter">
+                      {marketItems.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 0)), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="mt-4 flex items-center gap-2">
+                    <div className="h-1.5 flex-1 bg-white/5 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(marketItems.filter(i => i.checked).length / (marketItems.length || 1)) * 100}%` }}
+                        className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
                       />
                     </div>
-
-                    {/* Price */}
-                    <div className="col-span-2 mb-4 md:mb-0">
-                       <p className="text-[10px] md:hidden font-black text-slate-400 uppercase tracking-widest mb-2">Preço Un.</p>
-                       <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-400">R$</span>
-                          <input 
-                            type="number"
-                            step="0.01"
-                            value={item.price}
-                            onChange={e => updateMarketItem(item.id, { price: parseFloat(e.target.value) || 0 })}
-                            className="bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-black outline-none focus:ring-2 focus:ring-emerald-500 w-full"
-                          />
-                       </div>
-                    </div>
-
-                    {/* Quantity */}
-                    <div className="col-span-2 mb-6 md:mb-0">
-                      <p className="text-[10px] md:hidden font-black text-slate-400 uppercase tracking-widest mb-2">Quantidade</p>
-                      <div className="flex items-center gap-3">
-                        <button onClick={() => updateMarketItem(item.id, { quantity: Math.max(0.1, (item.quantity || 0) - 1) })} className="w-10 h-10 md:w-8 md:h-8 bg-white border border-slate-200 rounded-lg flex items-center justify-center font-black text-slate-400 hover:text-slate-900 cursor-pointer active:scale-90">-</button>
-                        <input 
-                           type="number"
-                           step="0.1"
-                           value={item.quantity}
-                           onChange={e => updateMarketItem(item.id, { quantity: parseFloat(e.target.value) || 0 })}
-                           className="flex-1 md:flex-none bg-white border border-slate-200 px-2 py-2.5 rounded-xl text-xs font-black outline-none focus:ring-2 focus:ring-emerald-500 md:w-16 text-center"
-                         />
-                        <button onClick={() => updateMarketItem(item.id, { quantity: (item.quantity || 0) + 1 })} className="w-10 h-10 md:w-8 md:h-8 bg-white border border-slate-200 rounded-lg flex items-center justify-center font-black text-slate-400 hover:text-slate-900 cursor-pointer active:scale-90">+</button>
-                      </div>
-                    </div>
-
-                    {/* Total & Action */}
-                    <div className="col-span-1 flex items-center justify-between md:justify-end md:px-6 border-t md:border-none border-slate-100 pt-4 md:pt-0">
-                      <div className="text-right">
-                        <p className="text-[9px] md:hidden font-black text-slate-400 uppercase tracking-widest mb-0.5">Subtotal</p>
-                        <span className="text-sm font-black text-emerald-600">
-                          R$ {((item.price || 0) * (item.quantity || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                      <button onClick={() => removeMarketItem(item.id)} className="p-3 md:p-2 text-slate-300 hover:text-red-500 transition-colors cursor-pointer active:scale-90"><Trash2 size={18} className="md:w-4 md:h-4" /></button>
-                    </div>
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                      {marketItems.filter(i => i.checked).length} / {marketItems.length} PEGOS
+                    </span>
                   </div>
-                ))}
+                </div>
               </div>
-            )}
-          </div>
+            </div>
 
-          <div className="p-8 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between">
-            <button onClick={() => setViewMode('catalog')} className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors flex items-center gap-2 cursor-pointer">
-              <CloseIcon size={14} /> Cancelar Feira
-            </button>
-            <button 
-              disabled={marketItems.length === 0}
-              onClick={finalizeMarketTrip}
-              className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-10 py-5 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-emerald-100 flex items-center gap-4 transition-all active:scale-95 cursor-pointer"
-            >
-              Finalizar Compra & Lançar Despesa
-              <ArrowRight size={18} />
-            </button>
+            <div className="p-4 md:p-8 space-y-6">
+              {marketItems.length === 0 ? (
+                <div className="py-32 text-center space-y-4">
+                   <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-200">
+                     <ShoppingCart size={40} />
+                   </div>
+                   <p className="text-sm font-bold text-slate-300 uppercase tracking-[0.3em]">Carrinho disponível</p>
+                   <button onClick={() => setViewMode('catalog')} className="px-6 py-3 bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-200 transition-all cursor-pointer">
+                     Adicionar itens do catálogo
+                   </button>
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {/* Category Tabs for easier navigation in the cart */}
+                  <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+                    {marketCategories.map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setMarketCategoryFilter(cat)}
+                        className={cn(
+                          "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border cursor-pointer",
+                          marketCategoryFilter === cat 
+                            ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-100" 
+                            : "bg-white border-slate-200 text-slate-400 hover:border-slate-300"
+                        )}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6">
+                    {filteredMarketItems.map((item, idx) => {
+                      const catalogItem = fullCatalogMap.get(item.name.toLowerCase());
+                      
+                      // Best price suggestion for this product across all known markets
+                      const prices = catalogItem?.marketPrices || {};
+                      const bestMarketPrice = Object.entries(prices).reduce((best: any, [m, p]: any) => {
+                        if (!best || p.price < best.price) return { market: m, ...p };
+                        return best;
+                      }, null);
+
+                      const brandSuggestions = catalogItem?.brands || [];
+                      
+                      return (
+                        <motion.div 
+                          layout
+                          key={item.id} 
+                          className={cn(
+                            "bg-white border p-6 rounded-[32px] shadow-sm hover:shadow-md transition-all group relative",
+                            item.checked ? "border-emerald-100 bg-emerald-50/10 opacity-70" : "border-slate-100"
+                          )}
+                        >
+                          {bestMarketPrice && bestMarketPrice.market !== selectedMarket && !item.checked && (
+                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-600 text-white text-[7px] font-black uppercase px-3 py-1 rounded-full shadow-lg z-10 animate-pulse">
+                              Mais barato no {bestMarketPrice.market}: R$ {bestMarketPrice.price.toFixed(2)}
+                            </div>
+                          )}
+                          <div className="flex flex-col md:grid md:grid-cols-12 gap-6 items-center">
+                            {/* Checkbox / Product Info */}
+                            <div className="md:col-span-4 w-full">
+                              <div className="flex items-center gap-4">
+                                <button 
+                                  onClick={() => updateMarketItem(item.id, { checked: !item.checked })}
+                                  className={cn(
+                                    "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all border cursor-pointer active:scale-90",
+                                    item.checked 
+                                      ? "bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-200" 
+                                      : "bg-slate-50 text-slate-300 border-slate-100 hover:border-emerald-300"
+                                  )}
+                                >
+                                  {item.checked ? <Check size={20} /> : <div className="w-4 h-4 border-2 border-slate-200 rounded-sm" />}
+                                </button>
+                                <div className="min-w-0">
+                                  <h4 className={cn("text-base font-black truncate tracking-tight", item.checked ? "text-slate-400 line-through" : "text-slate-900")}>{item.name}</h4>
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{item.unit}</p>
+                                </div>
+                                <button onClick={() => removeMarketItem(item.id)} className="md:hidden ml-auto p-2 text-slate-300 hover:text-red-500"><Trash2 size={18} /></button>
+                              </div>
+                            </div>
+
+                            {/* Brand Editing */}
+                            <div className="md:col-span-3 w-full space-y-2">
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Marca / Variação</label>
+                              <div className="relative group/input">
+                                <input 
+                                  placeholder="Digite a marca..."
+                                  value={item.brand || ''}
+                                  onChange={e => updateMarketItem(item.id, { brand: e.target.value, marketName: selectedMarket })}
+                                  className="w-full bg-slate-50 border border-slate-100 px-4 py-3 rounded-2xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                                />
+                                {brandSuggestions.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5 mt-2">
+                                    {brandSuggestions.map(brand => (
+                                      <button 
+                                        key={brand}
+                                        onClick={() => updateMarketItem(item.id, { brand, marketName: selectedMarket })}
+                                        className={cn(
+                                          "px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider border transition-all cursor-pointer",
+                                          item.brand === brand 
+                                            ? "bg-emerald-600 border-emerald-600 text-white" 
+                                            : "bg-white border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-500"
+                                        )}
+                                      >
+                                        {brand}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Dynamic Price */}
+                            <div className="md:col-span-2 w-full space-y-2">
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Preço Un.</label>
+                              <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 px-4 py-3 rounded-2xl group-focus-within:ring-2 group-focus-within:ring-emerald-500 transition-all">
+                                <span className="text-xs font-black text-slate-400">R$</span>
+                                <input 
+                                  type="number"
+                                  step="0.01"
+                                  value={item.price}
+                                  onChange={e => updateMarketItem(item.id, { price: parseFloat(e.target.value) || 0, marketName: selectedMarket })}
+                                  className="w-full bg-transparent text-sm font-black text-slate-900 outline-none"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Quantity Controls */}
+                            <div className="md:col-span-2 w-full space-y-2">
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 text-center block">Qtd</label>
+                              <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-1.5 rounded-2xl">
+                                <button onClick={() => updateMarketItem(item.id, { quantity: Math.max(0.1, (item.quantity || 0) - 1) })} className="w-10 h-10 bg-white shadow-sm rounded-xl flex items-center justify-center font-black text-slate-400 hover:text-slate-900 hover:bg-slate-50 transition-all cursor-pointer active:scale-90">-</button>
+                                <input 
+                                   type="number"
+                                   step="0.1"
+                                   value={item.quantity}
+                                   onChange={e => updateMarketItem(item.id, { quantity: parseFloat(e.target.value) || 0 })}
+                                   className="w-12 bg-transparent text-center text-sm font-black text-slate-900 outline-none"
+                                 />
+                                <button onClick={() => updateMarketItem(item.id, { quantity: (item.quantity || 0) + 1 })} className="w-10 h-10 bg-white shadow-sm rounded-xl flex items-center justify-center font-black text-slate-400 hover:text-slate-900 hover:bg-slate-50 transition-all cursor-pointer active:scale-90">+</button>
+                              </div>
+                            </div>
+
+                            {/* Actions & Subtotal */}
+                            <div className="md:col-span-1 hidden md:flex flex-col items-end gap-2">
+                               <button onClick={() => removeMarketItem(item.id)} className="p-2 text-slate-200 hover:text-red-500 transition-colors cursor-pointer active:scale-90"><Trash2 size={16} /></button>
+                               <div className="text-right">
+                                 <span className="text-[10px] font-black text-emerald-600 block">Subtotal</span>
+                                 <span className="text-sm font-black text-slate-900">
+                                   R$ {((item.price || 0) * (item.quantity || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                 </span>
+                               </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-8 bg-slate-900 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-6">
+              <button 
+                onClick={() => {
+                  setConfirmingAction({
+                    title: 'Sair do Modo Feira',
+                    message: 'Tem certeza que deseja sair? Os itens no carrinho não serão perdidos, mas você voltará para o catálogo.',
+                    onConfirm: () => {
+                      setConfirmingAction(null);
+                      setViewMode('catalog');
+                    }
+                  });
+                }} 
+                className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-white transition-colors flex items-center gap-2 cursor-pointer"
+              >
+                <CloseIcon size={14} /> Suspender Feira
+              </button>
+              
+              <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                <div className="text-right hidden md:block">
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Total a Lançar</p>
+                  <p className="text-xl font-black text-emerald-500 leading-none">
+                    R$ {marketItems.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 0)), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <button 
+                  disabled={marketItems.length === 0}
+                  onClick={finalizeMarketTrip}
+                  className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-12 py-5 rounded-[24px] text-xs font-black uppercase tracking-[0.2em] shadow-2xl shadow-emerald-900/20 flex items-center justify-center gap-4 transition-all active:scale-95 cursor-pointer"
+                >
+                  Confirmar Compra no {selectedMarket}
+                  <ArrowRight size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-slate-50/50 border border-slate-100 rounded-[32px] p-6 flex items-center gap-4">
+            <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-slate-400">
+               <Filter size={18} />
+            </div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">
+              Dica: Você pode trocar a marca e o preço dos produtos direto nos cartões acima. O sistema guardará o último preço pago em cada mercado.
+            </p>
           </div>
         </div>
       )}

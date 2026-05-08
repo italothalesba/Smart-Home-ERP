@@ -51,10 +51,35 @@ export interface MarketItem {
   productId: string;
   name: string;
   brand?: string;
+  marketName?: string;
   quantity: number;
   unit: string;
   price: number;
   addedAt: string;
+  checked?: boolean;
+}
+
+export interface Market {
+  id: string;
+  name: string;
+  location?: string;
+  contributorId?: string;
+}
+
+export interface CatalogItem {
+  id: string;
+  name: string;
+  category: string;
+  unit: string;
+  brands: string[];
+  marketPrices: {
+    [marketName: string]: {
+      price: number;
+      updatedAt: string;
+      brand?: string;
+    }
+  };
+  lastUpdateBy?: string;
 }
 
 export interface Finance {

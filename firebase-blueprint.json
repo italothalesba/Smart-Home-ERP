@@ -82,12 +82,43 @@
         "productId": { "type": "string" },
         "name": { "type": "string" },
         "brand": { "type": "string" },
+        "marketName": { "type": "string" },
         "quantity": { "type": "number" },
         "unit": { "type": "string" },
         "price": { "type": "number" },
-        "addedAt": { "type": "string" }
+        "addedAt": { "type": "string" },
+        "checked": { "type": "boolean" }
       },
       "required": ["productId", "name", "quantity"]
+    },
+    "Market": {
+      "title": "Market",
+      "description": "Shared list of markets",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "location": { "type": "string" },
+        "contributorId": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "CatalogItem": {
+      "title": "Public Catalog Item",
+      "description": "Shared product data and pricing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "unit": { "type": "string" },
+        "brands": { "type": "array", "items": { "type": "string" } },
+        "marketPrices": { 
+          "type": "object",
+          "description": "Map of market names to prices"
+        },
+        "lastUpdateBy": { "type": "string" }
+      }
     },
     "UserProfile": {
       "title": "User Profile",
@@ -129,6 +160,14 @@
     "/users/{userId}/market_items/{itemId}": {
       "schema": "MarketItem",
       "description": "Items suggested for purchase"
+    },
+    "/markets/{marketId}": {
+      "schema": "Market",
+      "description": "Shared list of markets"
+    },
+    "/public_catalog/{productId}": {
+      "schema": "CatalogItem",
+      "description": "Shared pricing and product data"
     }
   }
 }

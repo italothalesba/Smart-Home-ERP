@@ -19,11 +19,19 @@ export function useFirestore<T>(collectionName: string) {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const getPath = () => {
+    if (collectionName.startsWith('/')) {
+      return collectionName.substring(1);
+    }
     const userId = auth.currentUser?.uid;
-    if (!userId) return;
+    return userId ? `users/${userId}/${collectionName}` : null;
+  };
 
-    const q = query(collection(db, `users/${userId}/${collectionName}`));
+  useEffect(() => {
+    const path = getPath();
+    if (!path) return;
+
+    const q = query(collection(db, path));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
@@ -38,13 +46,14 @@ export function useFirestore<T>(collectionName: string) {
   }, [collectionName]);
 
   const add = async (item: any) => {
+    const path = getPath();
     const userId = auth.currentUser?.uid;
-    if (!userId) return null;
+    if (!path) return null;
     try {
-      const docRef = await addDoc(collection(db, `users/${userId}/${collectionName}`), {
+      const docRef = await addDoc(collection(db, path), {
         ...item,
         updatedAt: serverTimestamp(),
-        ownerId: userId
+        ...(collectionName.startsWith('/') ? { contributorId: userId } : { ownerId: userId })
       });
       return docRef;
     } catch (err) {
@@ -54,13 +63,14 @@ export function useFirestore<T>(collectionName: string) {
   };
 
   const update = async (id: string, item: Partial<T>) => {
+    const path = getPath();
     const userId = auth.currentUser?.uid;
-    if (!userId) return;
+    if (!path) return;
     try {
-      await updateDoc(doc(db, `users/${userId}/${collectionName}`, id), {
+      await updateDoc(doc(db, path, id), {
         ...item,
         updatedAt: serverTimestamp(),
-        ownerId: userId
+        ...(collectionName.startsWith('/') ? { lastUpdateBy: userId } : { ownerId: userId })
       });
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, collectionName);
@@ -68,10 +78,10 @@ export function useFirestore<T>(collectionName: string) {
   };
 
   const remove = async (id: string) => {
-    const userId = auth.currentUser?.uid;
-    if (!userId) return;
+    const path = getPath();
+    if (!path) return;
     try {
-      await deleteDoc(doc(db, `users/${userId}/${collectionName}`, id));
+      await deleteDoc(doc(db, path, id));
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, collectionName);
     }
