@@ -381,7 +381,7 @@ export function MealView() {
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 onSubmit={handleAddMeal}
-                className="bg-white rounded-[32px] p-8 border border-slate-200 space-y-5 shadow-xl overflow-hidden"
+                className="bg-white rounded-[32px] p-6 md:p-8 border border-slate-200 space-y-5 shadow-xl overflow-hidden"
               >
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
@@ -423,32 +423,34 @@ export function MealView() {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Ingredientes do Estoque</label>
                   <div className="space-y-3">
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                        <select
                          value={currentIngredient.productId}
                          onChange={e => setCurrentIngredient({...currentIngredient, productId: e.target.value})}
-                         className="flex-1 px-4 py-3 border border-slate-100 bg-slate-50 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer appearance-none"
+                         className="flex-1 px-4 py-3 border border-slate-100 bg-slate-50 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer appearance-none min-w-0"
                        >
                          <option value="">Selecionar Produto...</option>
                          {products.sort((a, b) => a.name.localeCompare(b.name)).map(p => (
                            <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>
                          ))}
                        </select>
-                       <input 
-                         type="number"
-                         step="0.001"
-                         placeholder="Qtd/Pessoa"
-                         value={currentIngredient.amountPerPerson || ''}
-                         onChange={e => setCurrentIngredient({...currentIngredient, amountPerPerson: parseFloat(e.target.value) || 0})}
-                         className="w-24 px-4 py-3 border border-slate-100 bg-slate-50 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
-                       />
-                       <button 
-                         type="button"
-                         onClick={handleAddIngredient}
-                         className="p-3 bg-emerald-600 text-white rounded-xl transition-all cursor-pointer"
-                       >
-                         <Plus size={16} />
-                       </button>
+                       <div className="flex gap-2 shrink-0">
+                         <input 
+                           type="number"
+                           step="0.001"
+                           placeholder="Qtd/Pessoa"
+                           value={currentIngredient.amountPerPerson || ''}
+                           onChange={e => setCurrentIngredient({...currentIngredient, amountPerPerson: parseFloat(e.target.value) || 0})}
+                           className="flex-1 sm:w-24 px-4 py-3 border border-slate-100 bg-slate-50 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all min-w-0"
+                         />
+                         <button 
+                           type="button"
+                           onClick={handleAddIngredient}
+                           className="p-3 bg-emerald-600 text-white rounded-xl transition-all cursor-pointer hover:bg-emerald-700 active:scale-95 shrink-0"
+                         >
+                           <Plus size={16} />
+                         </button>
+                       </div>
                     </div>
 
                     {form.structuredIngredients.length > 0 && (
