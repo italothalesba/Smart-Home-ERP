@@ -264,7 +264,7 @@ export function FinanceView() {
   });
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto px-1 md:px-0">
+    <div className="space-y-8 max-w-5xl mx-auto">
       {/* Month Navigation */}
       <div className="space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 md:p-6 rounded-[32px] border border-slate-100 shadow-sm relative z-50">

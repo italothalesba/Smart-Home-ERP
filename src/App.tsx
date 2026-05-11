@@ -163,7 +163,7 @@ function DashboardView({
             animate={{ opacity: 1, y: 20, x: '-50%' }}
             exit={{ opacity: 0, y: -20, x: '-50%' }}
             className={cn(
-              "fixed top-0 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-2xl shadow-2xl font-black text-xs uppercase tracking-widest flex items-center gap-3",
+              "fixed top-0 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-2xl shadow-2xl font-black text-xs uppercase tracking-widest flex items-center gap-3 safe-mt",
               toast.type === 'success' ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
             )}
           >
@@ -558,7 +558,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row relative overflow-hidden font-sans safe-pt">
+    <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row relative overflow-hidden font-sans safe-pt safe-px">
       {/* Sidebar - Desktop */}
       <nav className="hidden lg:flex flex-col w-64 bg-white border-r border-slate-200 p-8 fixed h-full z-50">
         <div className="mb-12">
@@ -598,7 +598,7 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 lg:ml-64 relative min-h-screen">
-        <div className="max-w-6xl mx-auto p-4 md:p-8 lg:p-12 pb-40 lg:pb-12">
+        <div className="max-w-6xl mx-auto px-6 md:px-8 lg:px-12 py-4 md:py-8 lg:py-12 pb-40 lg:pb-12">
           <AnimatePresence mode="wait">
             {activeTab === 'dash' && (
               <motion.div 
@@ -669,7 +669,7 @@ export default function App() {
       </main>
 
       {/* Bottom Nav - Mobile ONLY */}
-      <nav className="fixed bottom-0 left-0 right-0 lg:hidden bg-white/95 backdrop-blur-2xl border-t border-slate-100 px-3 flex justify-between items-end pb-[env(safe-area-inset-bottom,16px)] pt-2 z-50 h-[88px] shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
+      <nav className="fixed bottom-0 left-0 right-0 lg:hidden bg-white/95 backdrop-blur-2xl border-t border-slate-100 px-6 safe-px flex justify-between items-end pb-[env(safe-area-inset-bottom,16px)] pt-2 z-50 h-[88px] shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
         <NavItem icon={LayoutDashboard} label="Resumo" active={activeTab === 'dash'} onClick={() => setActiveTab('dash')} />
         <NavItem icon={ShoppingBag} label="Estoque" active={activeTab === 'market'} onClick={() => setActiveTab('market')} />
         

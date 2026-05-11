@@ -286,7 +286,7 @@ export function MealView() {
   };
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto px-1 md:px-0 relative">
+    <div className="space-y-8 max-w-6xl mx-auto relative">
       {/* Toast Notification */}
       <AnimatePresence>
         {toast && (
@@ -295,7 +295,7 @@ export function MealView() {
             animate={{ opacity: 1, y: 20, x: '-50%' }}
             exit={{ opacity: 0, y: -20, x: '-50%' }}
             className={cn(
-              "fixed top-0 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-2xl font-black text-xs uppercase tracking-widest flex items-center gap-3",
+              "fixed top-0 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-2xl font-black text-xs uppercase tracking-widest flex items-center gap-3 safe-mt",
               toast.type === 'success' ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
             )}
           >
